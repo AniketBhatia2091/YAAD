@@ -1,0 +1,16 @@
+import 'package:flutter/material.dart';
+
+/// YAAD Design System — Radius Tokens
+abstract class YaadRadius {
+  static const double sm = 8.0;
+  static const double md = 12.0;
+  static const double lg = 16.0;
+  static const double xl = 24.0;
+  static const double pill = 999.0;
+
+  static const BorderRadius borderSm = BorderRadius.all(Radius.circular(sm));
+  static const BorderRadius borderMd = BorderRadius.all(Radius.circular(md));
+  static const BorderRadius borderLg = BorderRadius.all(Radius.circular(lg));
+  static const BorderRadius borderXl = BorderRadius.all(Radius.circular(xl));
+  static const BorderRadius borderPill = BorderRadius.all(Radius.circular(pill));
+}
