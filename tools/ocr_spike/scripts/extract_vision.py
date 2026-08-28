@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Structured Vision LLM Extraction Script.
+Configurable Vision Model Extraction Script.
+Supports multiple vision providers (Google, OpenAI, Anthropic, Generic REST).
 Part of YAAD OCR & Structured Extraction Spike v0.3.
 """
 
@@ -12,6 +13,7 @@ import time
 from typing import Dict, Any, Optional
 
 from common import ExtractionResult, load_ground_truth
+from vision_providers import get_vision_provider, BaseVisionProvider
 
 
 SYSTEM_PROMPT = """You are YAAD's high-precision document extraction engine for Indian life documents (bills, prescriptions, medicine strips, IDs, warranties).
@@ -54,13 +56,9 @@ STRICT RULES:
 """
 
 
-def extract_vision_api(image_path: str, model_name: str = "gemini-2.5-flash") -> ExtractionResult:
-    """
-    Sends document image to Vision API and parses structured extraction response.
-    Reads API credentials from environment variable `VISION_API_KEY` or `GEMINI_API_KEY`.
-    """
-    api_key = os.getenv("VISION_API_KEY") or os.getenv("GEMINI_API_KEY")
-    if not api_key:
+def extract_vision_api(image_path: str, provider: Optional[BaseVisionProvider]) -> ExtractionResult:
+    """Sends document image to configured VisionProvider."""
+    if not provider:
         return ExtractionResult(
             filename=os.path.basename(image_path),
             method="vision",
@@ -68,7 +66,7 @@ def extract_vision_api(image_path: str, model_name: str = "gemini-2.5-flash") ->
             confidence={},
             latency_seconds=0.0,
             raw_text="",
-            error="API Key missing. Set environment variable `export VISION_API_KEY='your-key'`.",
+            error="Vision API Credentials or Provider missing. Set `export VISION_API_KEY='your-key'`.",
         )
 
     if not os.path.exists(image_path):
@@ -84,52 +82,11 @@ def extract_vision_api(image_path: str, model_name: str = "gemini-2.5-flash") ->
 
     start_time = time.time()
     try:
-        import base64
-        import requests
-
-        with open(image_path, "rb") as image_file:
-            b64_image = base64.b64encode(image_file.read()).decode("utf-8")
-
-        # Generic REST Vision API invocation endpoint
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-        headers = {"Content-Type": "application/json"}
-        payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {"text": SYSTEM_PROMPT},
-                        {
-                            "inline_data": {
-                                "mime_type": "image/jpeg",
-                                "data": b64_image,
-                            }
-                        },
-                    ]
-                }
-            ],
-            "generationConfig": {"response_mime_type": "application/json"},
-        }
-
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        parsed_json = provider.extract_structured(image_path, SYSTEM_PROMPT)
         latency = time.time() - start_time
 
-        if response.status_code != 200:
-            return ExtractionResult(
-                filename=os.path.basename(image_path),
-                method="vision",
-                fields={},
-                confidence={},
-                latency_seconds=latency,
-                raw_text=response.text,
-                error=f"Vision API HTTP {response.status_code}: {response.text[:200]}",
-            )
-
-        resp_json = response.json()
-        raw_content = resp_json["candidates"][0]["content"]["parts"][0]["text"]
-        parsed = json.loads(raw_content)
-
-        fields = parsed.get("fields", {})
-        confidence = parsed.get("confidence", {})
+        fields = parsed_json.get("fields", {})
+        confidence = parsed_json.get("confidence", {})
 
         return ExtractionResult(
             filename=os.path.basename(image_path),
@@ -137,7 +94,7 @@ def extract_vision_api(image_path: str, model_name: str = "gemini-2.5-flash") ->
             fields=fields,
             confidence=confidence,
             latency_seconds=latency,
-            raw_text=raw_content,
+            raw_text=json.dumps(parsed_json, ensure_ascii=False),
         )
 
     except Exception as e:
@@ -154,15 +111,16 @@ def extract_vision_api(image_path: str, model_name: str = "gemini-2.5-flash") ->
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run Vision Model extraction on spike dataset")
+    parser = argparse.ArgumentParser(description="Run Configurable Vision Model extraction on spike dataset")
     parser.add_argument("--gt", default="ground_truth.csv", help="Path to ground truth CSV")
     parser.add_argument("--img_dir", default="images", help="Directory containing images")
     parser.add_argument("--out_dir", default="outputs", help="Output directory")
-    parser.add_argument("--model", default="gemini-2.5-flash", help="Vision model identifier")
     args = parser.parse_args()
 
     gt_rows = load_ground_truth(args.gt)
-    print(f"[Vision Spike] Running Vision API extraction ({args.model}) on {len(gt_rows)} images...")
+    provider, provider_type, model_name = get_vision_provider()
+    
+    print(f"[Vision Spike] Provider: {provider_type} | Model: {model_name or 'default'}")
 
     vision_out_dir = os.path.join(args.out_dir, "vision")
     os.makedirs(vision_out_dir, exist_ok=True)
@@ -171,12 +129,14 @@ def main():
         img_path = os.path.join(args.img_dir, row.filename)
         safe_name = row.filename.replace("/", "_")
 
-        res = extract_vision_api(img_path, model_name=args.model)
+        res = extract_vision_api(img_path, provider)
         out_file = os.path.join(vision_out_dir, f"{safe_name}.json")
 
         out_data = {
             "filename": res.filename,
             "method": res.method,
+            "provider": provider_type,
+            "model": model_name,
             "latency_seconds": res.latency_seconds,
             "fields": res.fields,
             "confidence": res.confidence,

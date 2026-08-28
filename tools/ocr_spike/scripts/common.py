@@ -42,32 +42,19 @@ class ExtractionResult:
 
 
 def normalize_text(text: Optional[str]) -> str:
-    """
-    Normalizes text for comparison while preserving original script characters (Devanagari, Gurmukhi, etc.).
-    Applies NFKD normalization, collapses whitespace, strips leading/trailing punctuation.
-    """
+    """Normalizes text for comparison while preserving Devanagari/Gurmukhi scripts."""
     if not text:
         return ""
-    
-    # Normalize unicode
     normalized = unicodedata.normalize("NFKD", text)
-    # Collapse multiple whitespaces/newlines
     normalized = re.sub(r"\s+", " ", normalized).strip()
-    # Lowercase Latin text while preserving Devanagari/Gurmukhi
-    normalized = normalized.lower()
-    return normalized
+    return normalized.lower()
 
 
 def normalize_numeric(value: Optional[str]) -> Optional[float]:
-    """
-    Parses currency/amount representations like '₹1,847.00', 'Rs. 1847/-', '1847.50' into a float.
-    """
+    """Parses numeric amount representations like '₹1,847.00', 'Rs. 1847/-' into float."""
     if not value:
         return None
-    
-    # Remove currency symbols, commas, trailing slashes (keep decimal dot)
     clean = re.sub(r"[₹\$\,Rs\s\/\-]", "", str(value), flags=re.IGNORECASE)
-    # Match digits and optional decimal
     match = re.search(r"\d+(\.\d+)?", clean)
     if match:
         try:
@@ -78,15 +65,10 @@ def normalize_numeric(value: Optional[str]) -> Optional[float]:
 
 
 def normalize_date(date_str: Optional[str]) -> Optional[str]:
-    """
-    Parses date representations ('05/09/2026', '2026-09-05', '5 Sep 2026', '05-09-26')
-    and returns ISO formatted date 'YYYY-MM-DD'.
-    """
+    """Parses date representations and returns exact ISO 'YYYY-MM-DD'."""
     if not date_str:
         return None
-    
     clean_str = date_str.strip()
-    # If already ISO format YYYY-MM-DD
     if re.match(r"^\d{4}-\d{2}-\d{2}$", clean_str):
         return clean_str
 
@@ -108,7 +90,6 @@ def normalize_date(date_str: Optional[str]) -> Optional[str]:
         except ValueError:
             continue
             
-    # Try extract digits
     match = re.search(r"(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})", clean_str)
     if match:
         y, m, d = match.groups()
@@ -117,50 +98,61 @@ def normalize_date(date_str: Optional[str]) -> Optional[str]:
     return None
 
 
-def match_text(expected: Optional[str], actual: Optional[str]) -> bool:
-    """Fuzzy text match checking normalized substring / token overlap."""
+def match_strict_identifier(expected: Optional[str], actual: Optional[str]) -> bool:
+    """Strict exact match for document numbers / policy numbers (no loose substrings)."""
     if not expected and not actual:
         return True
     if not expected or not actual:
         return False
-    
-    exp_norm = normalize_text(expected)
-    act_norm = normalize_text(actual)
-    
-    if exp_norm == act_norm:
-        return True
-    
-    # Substring overlap check
-    if exp_norm in act_norm or act_norm in exp_norm:
-        return True
-        
-    return False
+    exp_clean = re.sub(r"[\s\-]", "", str(expected)).upper()
+    act_clean = re.sub(r"[\s\-]", "", str(actual)).upper()
+    return exp_clean == act_clean
 
 
 def match_numeric(expected: Optional[str], actual: Optional[str]) -> bool:
-    """Matches numeric amounts accurately."""
+    """Strict exact numeric match within 0.001 tolerance."""
     exp_num = normalize_numeric(expected)
     act_num = normalize_numeric(actual)
-    
     if exp_num is None and act_num is None:
         return True
     if exp_num is None or act_num is None:
         return False
-        
-    return abs(exp_num - act_num) < 0.01
+    return abs(exp_num - act_num) < 0.001
 
 
 def match_date(expected: Optional[str], actual: Optional[str]) -> bool:
-    """Matches date fields by comparing normalized ISO representations."""
+    """Strict exact date match comparing ISO YYYY-MM-DD representations."""
     exp_date = normalize_date(expected)
     act_date = normalize_date(actual)
-    
     if exp_date is None and act_date is None:
         return True
     if exp_date is None or act_date is None:
         return False
-        
     return exp_date == act_date
+
+
+def match_strict_text(expected: Optional[str], actual: Optional[str]) -> bool:
+    """Strict exact word match for medicine names & dosage."""
+    if not expected and not actual:
+        return True
+    if not expected or not actual:
+        return False
+    exp_norm = normalize_text(expected)
+    act_norm = normalize_text(actual)
+    return exp_norm == act_norm
+
+
+def match_text(expected: Optional[str], actual: Optional[str]) -> bool:
+    """Strict text matching checking full token set equality or exact match."""
+    if not expected and not actual:
+        return True
+    if not expected or not actual:
+        return False
+    exp_norm = normalize_text(expected)
+    act_norm = normalize_text(actual)
+    if exp_norm == act_norm:
+        return True
+    return False
 
 
 def load_ground_truth(csv_path: str) -> List[GroundTruthRow]:

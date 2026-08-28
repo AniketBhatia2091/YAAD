@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Scoring Engine, Confidence Calibration, and Failure Taxonomy Classifier.
+Scoring Engine, Confidence Calibration, Stage Failure Classifier.
 Part of YAAD OCR & Structured Extraction Spike v0.3.
 """
 
@@ -16,6 +16,8 @@ from common import (
     load_ground_truth,
     match_date,
     match_numeric,
+    match_strict_identifier,
+    match_strict_text,
     match_text,
 )
 
@@ -29,33 +31,37 @@ REQUIRED_FIELDS_BY_DOC = {
 }
 
 
-def evaluate_field(field_name: str, expected_val: str, actual_val: str) -> bool:
-    """Evaluates field correctness using domain-specific fuzzy/semantic match rules."""
-    if "amount" in field_name:
+def evaluate_field_strict(field_name: str, expected_val: str, actual_val: str) -> bool:
+    """Evaluates field correctness using domain-specific strict match rules."""
+    if "document_number" in field_name or "policy_number" in field_name:
+        return match_strict_identifier(expected_val, actual_val)
+    elif "amount" in field_name:
         return match_numeric(expected_val, actual_val)
     elif "date" in field_name or "end" in field_name or "deadline" in field_name:
         return match_date(expected_val, actual_val)
+    elif "medicine" in field_name or "dosage" in field_name:
+        return match_strict_text(expected_val, actual_val)
     else:
         return match_text(expected_val, actual_val)
 
 
-def classify_failure_reason(row: GroundTruthRow, field_name: str, expected: str, actual: str, conf: float) -> str:
-    """Classifies extraction failure into taxonomy category."""
+def classify_stage_failure(row: GroundTruthRow, field_name: str, expected: str, actual: str, conf: float) -> str:
+    """Classifies extraction failure stage (Preprocessing, OCR, Parsing, Mapping, Hallucination)."""
     if not actual:
-        return "missing_field"
+        return "stage3_missing_field"
     if conf > 0.85 and not match_text(expected, actual):
-        return "hallucination"
+        return "stage5_hallucination"
     if row.handwritten:
-        return "handwriting"
+        return "stage2_handwriting_ocr_error"
     if row.image_quality == "poor":
-        return "blurry_or_glare"
+        return "stage1_preprocessing_quality_error"
     if row.script in ["devanagari", "gurmukhi", "mixed"]:
-        return "language_script"
+        return "stage2_language_script_ocr_error"
     if "date" in field_name:
-        return "date_interpretation"
+        return "stage4_date_parsing_error"
     if "amount" in field_name:
-        return "numeric_interpretation"
-    return "ocr_character_error"
+        return "stage4_numeric_parsing_error"
+    return "stage2_ocr_character_error"
 
 
 def run_scoring(gt_csv: str, out_dir: str):
@@ -97,7 +103,6 @@ def run_scoring(gt_csv: str, out_dir: str):
                         text = f.read()
                         actual_fields = {"raw_text": text}
 
-            # Map GT expected fields
             gt_field_map = {
                 "expected_title": row.expected_title,
                 "expected_amount": row.expected_amount,
@@ -115,18 +120,16 @@ def run_scoring(gt_csv: str, out_dir: str):
 
             req_fields = REQUIRED_FIELDS_BY_DOC.get(row.doc_type, ["expected_title"])
             doc_success = True
-            doc_eval_count = 0
 
             for f_name, exp_val in gt_field_map.items():
                 if not exp_val:
                     continue  # N/A
 
-                doc_eval_count += 1
                 short_key = f_name.replace("expected_", "")
                 act_val = actual_fields.get(short_key) or actual_fields.get(f_name)
                 conf_val = float(conf_fields.get(short_key, 0.5))
 
-                is_correct = evaluate_field(f_name, exp_val, str(act_val) if act_val else "")
+                is_correct = evaluate_field_strict(f_name, exp_val, str(act_val) if act_val else "")
 
                 if not is_correct and f_name in req_fields:
                     doc_success = False
@@ -163,7 +166,7 @@ def run_scoring(gt_csv: str, out_dir: str):
                 })
 
                 if not is_correct:
-                    reason = classify_failure_reason(row, f_name, exp_val, str(act_val) if act_val else "", conf_val)
+                    reason = classify_stage_failure(row, f_name, exp_val, str(act_val) if act_val else "", conf_val)
                     failures.append({
                         "method": method,
                         "filename": row.filename,
@@ -175,7 +178,6 @@ def run_scoring(gt_csv: str, out_dir: str):
                         "failure_category": reason,
                     })
 
-    # Save score_results.csv
     score_path = os.path.join(out_dir, "score_results.csv")
     if score_records:
         with open(score_path, "w", newline="", encoding="utf-8") as f:
@@ -183,7 +185,6 @@ def run_scoring(gt_csv: str, out_dir: str):
             writer.writeheader()
             writer.writerows(score_records)
 
-    # Save failure_analysis.csv
     fail_path = os.path.join(out_dir, "failure_analysis.csv")
     if failures:
         with open(fail_path, "w", newline="", encoding="utf-8") as f:
@@ -191,7 +192,6 @@ def run_scoring(gt_csv: str, out_dir: str):
             writer.writeheader()
             writer.writerows(failures)
 
-    # Print Calibration Summary
     print("\n--- Confidence Calibration Matrix ---")
     for bucket, counts in calibration_buckets.items():
         tot = counts["total"]
@@ -202,7 +202,7 @@ def run_scoring(gt_csv: str, out_dir: str):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Score OCR spike results")
+    parser = argparse.ArgumentParser(description="Score OCR spike results strictly")
     parser.add_argument("--gt", default="ground_truth.csv", help="Path to ground truth CSV")
     parser.add_argument("--out_dir", default="outputs", help="Output directory")
     args = parser.parse_args()
