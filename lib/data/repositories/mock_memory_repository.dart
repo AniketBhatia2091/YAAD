@@ -5,8 +5,7 @@ import '../models/memory.dart';
 import '../models/vault_category.dart';
 import 'memory_repository.dart';
 
-/// Concrete Mock Data Repository supplying realistic demonstration memories for YAAD v0.1.
-/// Marked clearly as development/demo data layer to be swapped with SQLite Drift DB.
+/// Concrete Mock Data Repository supplying realistic demonstration memories for YAAD.
 class MockMemoryRepository implements MemoryRepository {
   final List<Memory> _memories = [
     // Attention items
@@ -127,13 +126,27 @@ class MockMemoryRepository implements MemoryRepository {
   ];
 
   @override
+  Future<void> createMemory(Memory memory) async {
+    _memories.insert(0, memory);
+  }
+
+  @override
+  Future<Memory?> getMemoryById(String id) async {
+    try {
+      return _memories.firstWhere((m) => m.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
   Future<List<Memory>> getAttentionItems() async {
     return _memories.where((m) => m.isAttentionRequired).toList();
   }
 
   @override
   Future<List<Memory>> getUpcomingItems() async {
-    return _memories.where((m) => !m.isAttentionRequired && m.expiryDate != null || m.dueDate != null).toList();
+    return _memories.where((m) => !m.isAttentionRequired && (m.expiryDate != null || m.dueDate != null)).toList();
   }
 
   @override
@@ -219,11 +232,6 @@ class MockMemoryRepository implements MemoryRepository {
           m.categoryKey.toLowerCase().contains(q) ||
           (m.extractedText?.toLowerCase().contains(q) ?? false);
     }).toList();
-  }
-
-  @override
-  Future<void> addMemory(Memory memory) async {
-    _memories.insert(0, memory);
   }
 
   @override

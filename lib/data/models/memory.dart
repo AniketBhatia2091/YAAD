@@ -1,23 +1,23 @@
 /// Domain entity representing a personal memory in YAAD.
-/// Architecture allows replacing mock provider with Drift SQLite database or Remote Vault seamlessly.
 class Memory {
   final String id;
   final String title;
-  final String documentType; // E.g., 'Bill', 'Insurance', 'ID', 'Medical', 'Warranty', 'Certificate'
-  final String categoryKey; // E.g., 'ids', 'bills', 'vehicles', 'medical', 'warranties', 'education'
+  final String documentType; // E.g., 'Bill', 'Insurance', 'ID', 'unknown'
+  final String categoryKey; // E.g., 'ids', 'bills', 'vehicles', 'medical', 'warranties', 'education', 'unsorted'
   final String? imagePath;
   final String? extractedText;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final String owner; // E.g., 'Self', 'Mom', 'Vehicle'
-  final double confidence;
+  final String owner; // E.g., 'Self', 'Mom', 'Vehicle', 'Unknown'
+  final double? confidence;
   final DateTime? expiryDate;
   final DateTime? dueDate;
   final double? amount;
-  final String? actionTitle; // E.g., 'Pay by Sep 5', 'Renew before Sep 10', '2 tablets'
+  final String? actionTitle;
   final String? actionSubtitle;
   final bool isAttentionRequired;
-  final String? subtitle; // E.g. "₹1,847 · Due in 2 days" or "Expires in 12 days"
+  final String? subtitle;
+  final String? metadata;
 
   const Memory({
     required this.id,
@@ -29,7 +29,7 @@ class Memory {
     required this.createdAt,
     required this.updatedAt,
     required this.owner,
-    this.confidence = 1.0,
+    this.confidence,
     this.expiryDate,
     this.dueDate,
     this.amount,
@@ -37,7 +37,36 @@ class Memory {
     this.actionSubtitle,
     this.isAttentionRequired = false,
     this.subtitle,
+    this.metadata,
   });
+
+  /// Factory helper for creating an unclassified Memory from capture/import.
+  factory Memory.createUnclassified({
+    required String id,
+    required String imagePath,
+  }) {
+    final now = DateTime.now();
+    return Memory(
+      id: id,
+      title: 'Untitled memory',
+      documentType: 'unknown',
+      categoryKey: 'unsorted',
+      imagePath: imagePath,
+      extractedText: null,
+      createdAt: now,
+      updatedAt: now,
+      owner: 'Self',
+      confidence: null,
+      expiryDate: null,
+      dueDate: null,
+      amount: null,
+      actionTitle: null,
+      actionSubtitle: null,
+      isAttentionRequired: false,
+      subtitle: 'Unclassified memory',
+      metadata: '{}',
+    );
+  }
 
   Memory copyWith({
     String? id,
@@ -57,6 +86,7 @@ class Memory {
     String? actionSubtitle,
     bool? isAttentionRequired,
     String? subtitle,
+    String? metadata,
   }) {
     return Memory(
       id: id ?? this.id,
@@ -76,6 +106,7 @@ class Memory {
       actionSubtitle: actionSubtitle ?? this.actionSubtitle,
       isAttentionRequired: isAttentionRequired ?? this.isAttentionRequired,
       subtitle: subtitle ?? this.subtitle,
+      metadata: metadata ?? this.metadata,
     );
   }
 }

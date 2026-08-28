@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme/color_tokens.dart';
@@ -19,9 +20,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
 
   final List<String> _suggestedQueries = const [
+    'Untitled memory',
     'Bike insurance',
     'Electricity bills',
-    'Mom\'s documents',
     'Warranties',
     'Certificates',
   ];
@@ -136,59 +137,63 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         final memory = memories[index];
                         return Padding(
                           padding: const EdgeInsets.only(bottom: YaadSpacing.sm),
-                          child: Container(
-                            padding: YaadSpacing.cardPadding,
-                            decoration: BoxDecoration(
-                              color: YaadColors.surfaceLight,
-                              borderRadius: YaadRadius.borderLg,
-                              border: Border.all(color: YaadColors.borderLight),
-                              boxShadow: YaadShadows.subtle,
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: const BoxDecoration(
-                                    color: YaadColors.surfaceSubtleLight,
-                                    borderRadius: YaadRadius.borderMd,
+                          child: InkWell(
+                            onTap: () => context.push('/memory/${memory.id}'),
+                            borderRadius: YaadRadius.borderLg,
+                            child: Container(
+                              padding: YaadSpacing.cardPadding,
+                              decoration: BoxDecoration(
+                                color: YaadColors.surfaceLight,
+                                borderRadius: YaadRadius.borderLg,
+                                border: Border.all(color: YaadColors.borderLight),
+                                boxShadow: YaadShadows.subtle,
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: const BoxDecoration(
+                                      color: YaadColors.surfaceSubtleLight,
+                                      borderRadius: YaadRadius.borderMd,
+                                    ),
+                                    child: Icon(
+                                      memory.imagePath != null ? Icons.image_outlined : Icons.description_outlined,
+                                      color: YaadColors.primary,
+                                      size: 24,
+                                    ),
                                   ),
-                                  child: const Icon(
-                                    Icons.description_outlined,
-                                    color: YaadColors.primary,
-                                    size: 24,
-                                  ),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        memory.title,
-                                        style: YaadTypography.titleMedium,
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        memory.subtitle ?? memory.documentType,
-                                        style: YaadTypography.bodyMedium.copyWith(
-                                          color: YaadColors.textSecondaryLight,
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          memory.title,
+                                          style: YaadTypography.titleMedium,
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          memory.subtitle ?? memory.documentType,
+                                          style: YaadTypography.bodyMedium.copyWith(
+                                            color: YaadColors.textSecondaryLight,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: const BoxDecoration(
-                                    color: YaadColors.surfaceSubtleLight,
-                                    borderRadius: YaadRadius.borderPill,
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: const BoxDecoration(
+                                      color: YaadColors.surfaceSubtleLight,
+                                      borderRadius: YaadRadius.borderPill,
+                                    ),
+                                    child: Text(
+                                      memory.owner,
+                                      style: YaadTypography.labelSmall,
+                                    ),
                                   ),
-                                  child: Text(
-                                    memory.owner,
-                                    style: YaadTypography.labelSmall,
-                                  ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         );

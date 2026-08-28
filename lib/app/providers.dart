@@ -1,15 +1,27 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/services/camera_service.dart';
+import '../core/services/storage_service.dart';
 import '../data/models/memory.dart';
 import '../data/models/vault_category.dart';
+import '../data/repositories/local_memory_repository.dart';
 import '../data/repositories/memory_repository.dart';
-import '../data/repositories/mock_memory_repository.dart';
 import '../data/repositories/onboarding_repository.dart';
 
 /// Shared Preferences Provider initialized in main.dart
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('SharedPreferences must be overridden in ProviderScope');
+});
+
+/// Storage Service Provider
+final storageServiceProvider = Provider<StorageService>((ref) {
+  return StorageService();
+});
+
+/// Camera Service Provider
+final cameraServiceProvider = ChangeNotifierProvider<CameraService>((ref) {
+  return CameraService();
 });
 
 /// Onboarding State Repository Provider
@@ -40,9 +52,16 @@ class OnboardingNotifier extends StateNotifier<bool> {
   }
 }
 
-/// Memory Repository Provider (Defaults to MockMemoryRepository for YAAD v0.1)
+/// Memory Repository Provider (Backed by LocalMemoryRepository & SQLite Storage)
 final memoryRepositoryProvider = Provider<MemoryRepository>((ref) {
-  return MockMemoryRepository();
+  final storage = ref.watch(storageServiceProvider);
+  return LocalMemoryRepository(storageService: storage);
+});
+
+/// Memory by ID Provider
+final memoryByIdProvider = FutureProvider.family<Memory?, String>((ref, id) async {
+  final repo = ref.watch(memoryRepositoryProvider);
+  return repo.getMemoryById(id);
 });
 
 /// Attention Items Provider

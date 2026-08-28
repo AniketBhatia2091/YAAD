@@ -197,81 +197,85 @@ class HomeScreen extends ConsumerWidget {
       children: items.map((memory) {
         return Padding(
           padding: const EdgeInsets.only(bottom: YaadSpacing.sm),
-          child: Container(
-            padding: YaadSpacing.cardPadding,
-            decoration: BoxDecoration(
-              color: YaadColors.surfaceLight,
-              borderRadius: YaadRadius.borderLg,
-              border: Border.all(color: YaadColors.borderLight),
-              boxShadow: YaadShadows.subtle,
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: memory.documentType == 'Bill'
-                        ? YaadColors.attentionUrgentBg
-                        : memory.documentType == 'Insurance'
-                            ? YaadColors.attentionWarningBg
-                            : YaadColors.accentLight,
-                    borderRadius: YaadRadius.borderMd,
-                  ),
-                  child: Icon(
-                    memory.documentType == 'Bill'
-                        ? Icons.receipt_outlined
-                        : memory.documentType == 'Insurance'
-                            ? Icons.security_outlined
-                            : Icons.medication_outlined,
-                    color: memory.documentType == 'Bill'
-                        ? YaadColors.attentionUrgent
-                        : memory.documentType == 'Insurance'
-                            ? YaadColors.attentionWarning
-                            : YaadColors.accent,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        memory.title,
-                        style: YaadTypography.titleMedium,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        memory.subtitle ?? '',
-                        style: YaadTypography.bodyMedium.copyWith(
-                          color: memory.documentType == 'Bill'
-                              ? YaadColors.attentionUrgent
-                              : memory.documentType == 'Insurance'
-                                  ? YaadColors.attentionWarning
-                                  : YaadColors.textSecondaryLight,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (memory.actionTitle != null)
+          child: InkWell(
+            onTap: () => context.push('/memory/${memory.id}'),
+            borderRadius: YaadRadius.borderLg,
+            child: Container(
+              padding: YaadSpacing.cardPadding,
+              decoration: BoxDecoration(
+                color: YaadColors.surfaceLight,
+                borderRadius: YaadRadius.borderLg,
+                border: Border.all(color: YaadColors.borderLight),
+                boxShadow: YaadShadows.subtle,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: const BoxDecoration(
-                      color: YaadColors.primary,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: memory.documentType == 'Bill'
+                          ? YaadColors.attentionUrgentBg
+                          : memory.documentType == 'Insurance'
+                              ? YaadColors.attentionWarningBg
+                              : YaadColors.accentLight,
                       borderRadius: YaadRadius.borderMd,
                     ),
-                    child: Text(
-                      memory.actionTitle!,
-                      style: YaadTypography.labelSmall.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    child: Icon(
+                      memory.documentType == 'Bill'
+                          ? Icons.receipt_outlined
+                          : memory.documentType == 'Insurance'
+                              ? Icons.security_outlined
+                              : Icons.medication_outlined,
+                      color: memory.documentType == 'Bill'
+                          ? YaadColors.attentionUrgent
+                          : memory.documentType == 'Insurance'
+                              ? YaadColors.attentionWarning
+                              : YaadColors.accent,
+                      size: 24,
                     ),
                   ),
-              ],
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          memory.title,
+                          style: YaadTypography.titleMedium,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          memory.subtitle ?? '',
+                          style: YaadTypography.bodyMedium.copyWith(
+                            color: memory.documentType == 'Bill'
+                                ? YaadColors.attentionUrgent
+                                : memory.documentType == 'Insurance'
+                                    ? YaadColors.attentionWarning
+                                    : YaadColors.textSecondaryLight,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (memory.actionTitle != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: const BoxDecoration(
+                        color: YaadColors.primary,
+                        borderRadius: YaadRadius.borderMd,
+                      ),
+                      child: Text(
+                        memory.actionTitle!,
+                        style: YaadTypography.labelSmall.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         );
@@ -293,28 +297,31 @@ class HomeScreen extends ConsumerWidget {
           final isLast = idx == items.length - 1;
           return Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.circle, size: 8, color: YaadColors.accent),
-                        const SizedBox(width: 12),
-                        Text(
-                          item.title,
-                          style: YaadTypography.titleSmall,
-                        ),
-                      ],
-                    ),
-                    Text(
-                      item.subtitle ?? '',
-                      style: YaadTypography.labelMedium.copyWith(
-                        color: YaadColors.textSecondaryLight,
+              InkWell(
+                onTap: () => context.push('/memory/${item.id}'),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.circle, size: 8, color: YaadColors.accent),
+                          const SizedBox(width: 12),
+                          Text(
+                            item.title,
+                            style: YaadTypography.titleSmall,
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                      Text(
+                        item.subtitle ?? '',
+                        style: YaadTypography.labelMedium.copyWith(
+                          color: YaadColors.textSecondaryLight,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               if (!isLast) const Divider(height: 1, color: YaadColors.borderLight),
@@ -333,56 +340,72 @@ class HomeScreen extends ConsumerWidget {
         itemCount: items.length,
         itemBuilder: (context, index) {
           final item = items[index];
-          return Container(
-            width: 160,
-            margin: const EdgeInsets.only(right: 12),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: YaadColors.surfaceLight,
-              borderRadius: YaadRadius.borderLg,
-              border: Border.all(color: YaadColors.borderLight),
-              boxShadow: YaadShadows.subtle,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(
-                        color: YaadColors.surfaceSubtleLight,
-                        borderRadius: YaadRadius.borderSm,
-                      ),
-                      child: const Icon(Icons.bookmark_outline, size: 16, color: YaadColors.primary),
-                    ),
-                    Text(
-                      item.owner,
-                      style: YaadTypography.labelSmall.copyWith(fontSize: 10),
-                    ),
-                  ],
+          final isRealLocal = item.categoryKey == 'unsorted' || item.imagePath != null;
+
+          return GestureDetector(
+            onTap: () => context.push('/memory/${item.id}'),
+            child: Container(
+              width: 160,
+              margin: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isRealLocal ? YaadColors.accentLight : YaadColors.surfaceLight,
+                borderRadius: YaadRadius.borderLg,
+                border: Border.all(
+                  color: isRealLocal ? YaadColors.accent : YaadColors.borderLight,
+                  width: isRealLocal ? 1.5 : 1,
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.title,
-                      style: YaadTypography.titleSmall.copyWith(fontSize: 14),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      item.documentType,
-                      style: YaadTypography.labelSmall.copyWith(
-                        color: YaadColors.textMutedLight,
+                boxShadow: YaadShadows.subtle,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: isRealLocal ? Colors.white : YaadColors.surfaceSubtleLight,
+                          borderRadius: YaadRadius.borderSm,
+                        ),
+                        child: Icon(
+                          isRealLocal ? Icons.camera_alt_outlined : Icons.bookmark_outline,
+                          size: 16,
+                          color: isRealLocal ? YaadColors.accent : YaadColors.primary,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                      Text(
+                        isRealLocal ? 'Captured' : item.owner,
+                        style: YaadTypography.labelSmall.copyWith(
+                          fontSize: 10,
+                          fontWeight: isRealLocal ? FontWeight.bold : FontWeight.normal,
+                          color: isRealLocal ? YaadColors.accent : YaadColors.textMutedLight,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.title,
+                        style: YaadTypography.titleSmall.copyWith(fontSize: 14),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        item.documentType,
+                        style: YaadTypography.labelSmall.copyWith(
+                          color: YaadColors.textMutedLight,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           );
         },

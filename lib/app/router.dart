@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/capture/capture_screen.dart';
+import '../features/capture/preview_screen.dart';
 import '../features/chat/chat_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/main_navigation/main_navigation_screen.dart';
+import '../features/memory_detail/memory_detail_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/search/search_screen.dart';
 import '../features/settings/settings_screen.dart';
@@ -44,6 +46,26 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/capture',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const CaptureScreen(),
+      ),
+
+      // Preview Screen
+      GoRoute(
+        path: '/preview',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final imagePath = state.extra as String? ?? '';
+          return PreviewScreen(imagePath: imagePath);
+        },
+      ),
+
+      // Memory Detail Screen
+      GoRoute(
+        path: '/memory/:id',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final memoryId = state.pathParameters['id'] ?? '';
+          return MemoryDetailScreen(memoryId: memoryId);
+        },
       ),
 
       // Settings Screen (Pushed on top of stack)

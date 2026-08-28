@@ -1,95 +1,122 @@
+import 'dart:io';
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
+import '../../app/providers.dart';
 import '../../app/theme/color_tokens.dart';
 import '../../app/theme/radius_tokens.dart';
 import '../../app/theme/shadow_tokens.dart';
 import '../../app/theme/typography_tokens.dart';
+import '../../core/services/camera_service.dart';
 
-/// Visual shell for the future "Point & Remember" camera experience.
-class CaptureScreen extends StatefulWidget {
+/// Real device camera capture screen for YAAD "Point & Remember".
+class CaptureScreen extends ConsumerStatefulWidget {
   const CaptureScreen({super.key});
 
   @override
-  State<CaptureScreen> createState() => _CaptureScreenState();
+  ConsumerState<CaptureScreen> createState() => _CaptureScreenState();
 }
 
-class _CaptureScreenState extends State<CaptureScreen> {
-  bool _isFlashOn = false;
-  String _detectedState = 'Bill detected'; // Demo static detection state
+class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindingObserver {
+  final ImagePicker _imagePicker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Initialize camera on initial load
+    Future.microtask(() {
+      ref.read(cameraServiceProvider.notifier).initialize();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final cameraService = ref.read(cameraServiceProvider.notifier);
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+      cameraService.dispose();
+    } else if (state == AppLifecycleState.resumed) {
+      cameraService.initialize();
+    }
+  }
+
+  Future<void> _onShutterTapped() async {
+    final cameraService = ref.read(cameraServiceProvider.notifier);
+    if (!cameraService.isInitialized || cameraService.isCapturing) return;
+
+    final xFile = await cameraService.capturePhoto();
+    if (xFile != null && mounted) {
+      context.push('/preview', extra: xFile.path);
+    }
+  }
+
+  Future<void> _onGalleryImportTapped() async {
+    try {
+      final pickedFile = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 100,
+      );
+
+      if (!mounted) return;
+
+      if (pickedFile != null) {
+        final file = File(pickedFile.path);
+        final exists = await file.exists();
+        if (!mounted) return;
+
+        if (exists) {
+          context.push('/preview', extra: pickedFile.path);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('We couldn\'t open that image.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('We couldn\'t open that image: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  IconData _getFlashIcon(FlashMode mode) {
+    switch (mode) {
+      case FlashMode.off:
+        return Icons.flash_off_rounded;
+      case FlashMode.auto:
+        return Icons.flash_auto_rounded;
+      case FlashMode.always:
+      case FlashMode.torch:
+        return Icons.flash_on_rounded;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final cameraService = ref.watch(cameraServiceProvider);
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
         child: Stack(
           children: [
-            // Camera Preview Viewfinder Placeholder
+            // Center Camera Preview / State Container
             Positioned.fill(
-              child: Container(
-                color: const Color(0xFF0F172A),
-                child: Center(
-                  child: AspectRatio(
-                    aspectRatio: 3 / 4,
-                    child: Container(
-                      margin: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white38, width: 1.5),
-                        borderRadius: YaadRadius.borderLg,
-                      ),
-                      child: Stack(
-                        children: [
-                          // Viewfinder Reticle Corners
-                          Positioned(
-                            top: 16,
-                            left: 16,
-                            child: _buildReticleCorner(0),
-                          ),
-                          Positioned(
-                            top: 16,
-                            right: 16,
-                            child: _buildReticleCorner(1),
-                          ),
-                          Positioned(
-                            bottom: 16,
-                            left: 16,
-                            child: _buildReticleCorner(2),
-                          ),
-                          Positioned(
-                            bottom: 16,
-                            right: 16,
-                            child: _buildReticleCorner(3),
-                          ),
-                          Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.center_focus_weak_rounded,
-                                  size: 64,
-                                  color: Colors.white24,
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'Point camera at any document, bill, or receipt',
-                                  style: YaadTypography.bodyMedium.copyWith(
-                                    color: Colors.white54,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              child: _buildCameraBody(cameraService),
             ),
 
-            // Top Control Bar (Close, Flash)
+            // Top Control Bar (Close, Flash, Status)
             Positioned(
               top: 16,
               left: 16,
@@ -109,45 +136,14 @@ class _CaptureScreenState extends State<CaptureScreen> {
                       },
                       icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
                       style: IconButton.styleFrom(
-                        backgroundColor: Colors.black45,
+                        backgroundColor: Colors.black54,
                       ),
                     ),
                   ),
-                  Row(
-                    children: [
-                      IconButton(
-                        onPressed: () {
-                          setState(() {
-                            _isFlashOn = !_isFlashOn;
-                          });
-                        },
-                        icon: Icon(
-                          _isFlashOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
-                          color: _isFlashOn ? YaadColors.accent : Colors.white,
-                          size: 24,
-                        ),
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.black45,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
 
-            // Bottom Controls Area
-            Positioned(
-              bottom: 24,
-              left: 0,
-              right: 0,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Subtle Detection Chip Area
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  // Status Chip ("Ready to remember")
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.black87,
                       borderRadius: YaadRadius.borderPill,
@@ -156,10 +152,10 @@ class _CaptureScreenState extends State<CaptureScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.auto_awesome_rounded, size: 16, color: YaadColors.accent),
-                        const SizedBox(width: 8),
+                        const Icon(Icons.circle, size: 8, color: YaadColors.accent),
+                        const SizedBox(width: 6),
                         Text(
-                          _detectedState,
+                          'Ready to remember',
                           style: YaadTypography.labelMedium.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
@@ -168,89 +164,105 @@ class _CaptureScreenState extends State<CaptureScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
 
-                  // Shutter & Side Controls
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      // Gallery/Import Control
-                      Semantics(
-                        label: 'Import from Gallery',
-                        child: IconButton(
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Gallery import will be connected to storage pipeline'),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.photo_library_outlined, color: Colors.white, size: 28),
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.white12,
-                            padding: const EdgeInsets.all(12),
-                          ),
-                        ),
+                  // Flash Control Toggle
+                  IconButton(
+                    onPressed: cameraService.isInitialized
+                        ? () => cameraService.toggleFlashMode()
+                        : null,
+                    icon: Icon(
+                      _getFlashIcon(cameraService.currentFlashMode),
+                      color: cameraService.currentFlashMode != FlashMode.off
+                          ? YaadColors.accent
+                          : Colors.white,
+                      size: 24,
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Bottom Action Controls
+            Positioned(
+              bottom: 24,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  // Gallery / Import Button
+                  Semantics(
+                    label: 'Import from Gallery',
+                    child: IconButton(
+                      onPressed: _onGalleryImportTapped,
+                      icon: const Icon(Icons.photo_library_outlined, color: Colors.white, size: 28),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.white12,
+                        padding: const EdgeInsets.all(12),
                       ),
+                    ),
+                  ),
 
-                      // Prominent Large Shutter Button
-                      Semantics(
-                        label: 'Capture Document',
-                        button: true,
-                        child: GestureDetector(
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Capture pipeline shell ready'),
-                              ),
-                            );
-                          },
+                  // Prominent Large YAAD Shutter Button
+                  Semantics(
+                    label: 'Capture Photo',
+                    button: true,
+                    child: GestureDetector(
+                      onTap: _onShutterTapped,
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.transparent,
+                          border: Border.all(color: Colors.white, width: 4),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4.0),
                           child: Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               shape: BoxShape.circle,
-                              color: Colors.transparent,
-                              border: Border.all(color: Colors.white, width: 4),
+                              color: YaadColors.accent,
+                              boxShadow: YaadShadows.captureButton,
                             ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(4.0),
-                              child: Container(
-                                decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: YaadColors.accent,
-                                  boxShadow: YaadShadows.captureButton,
-                                ),
-                                child: const Icon(
-                                  Icons.camera_rounded,
-                                  color: Colors.white,
-                                  size: 36,
-                                ),
-                              ),
-                            ),
+                            child: cameraService.isCapturing
+                                ? const Center(
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 3,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.camera_rounded,
+                                    color: Colors.white,
+                                    size: 36,
+                                  ),
                           ),
                         ),
                       ),
+                    ),
+                  ),
 
-                      // Manual Entry / Switch Mode Placeholder
-                      Semantics(
-                        label: 'Document Type Switcher',
-                        child: IconButton(
-                          onPressed: () {
-                            setState(() {
-                              _detectedState = _detectedState == 'Bill detected'
-                                  ? 'Document detected'
-                                  : 'Bill detected';
-                            });
-                          },
-                          icon: const Icon(Icons.swap_horiz_rounded, color: Colors.white, size: 28),
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.white12,
-                            padding: const EdgeInsets.all(12),
-                          ),
-                        ),
+                  // Camera Switch Button (Front <-> Rear)
+                  Semantics(
+                    label: 'Switch Camera',
+                    child: IconButton(
+                      onPressed: cameraService.hasMultipleCameras
+                          ? () => cameraService.switchCamera()
+                          : null,
+                      icon: Icon(
+                        Icons.cameraswitch_outlined,
+                        color: cameraService.hasMultipleCameras ? Colors.white : Colors.white38,
+                        size: 28,
                       ),
-                    ],
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.white12,
+                        padding: const EdgeInsets.all(12),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -258,6 +270,98 @@ class _CaptureScreenState extends State<CaptureScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCameraBody(CameraService cameraService) {
+    if (cameraService.isInitializing) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: YaadColors.accent),
+            SizedBox(height: 16),
+            Text(
+              'Initializing camera...',
+              style: TextStyle(color: Colors.white70),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (cameraService.errorMessage != null || !cameraService.isInitialized) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.camera_alt_outlined, size: 64, color: Colors.white38),
+              const SizedBox(height: 16),
+              Text(
+                cameraService.errorMessage ?? 'YAAD needs camera access to remember things you show it.',
+                style: YaadTypography.bodyLarge.copyWith(color: Colors.white70),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () => cameraService.initialize(),
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Try again'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: YaadColors.primary,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Active Camera Preview + Unobtrusive Document Framing Guide
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: CameraPreview(cameraService.controller!),
+        ),
+        Positioned.fill(
+          child: Container(
+            margin: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.white38, width: 1.5),
+              borderRadius: YaadRadius.borderLg,
+            ),
+            child: Stack(
+              children: [
+                Positioned(top: 16, left: 16, child: _buildReticleCorner(0)),
+                Positioned(top: 16, right: 16, child: _buildReticleCorner(1)),
+                Positioned(bottom: 16, left: 16, child: _buildReticleCorner(2)),
+                Positioned(bottom: 16, right: 16, child: _buildReticleCorner(3)),
+                Positioned(
+                  bottom: 24,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: const BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: YaadRadius.borderPill,
+                      ),
+                      child: Text(
+                        'Fit the important part inside the frame',
+                        style: YaadTypography.labelSmall.copyWith(color: Colors.white70),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
