@@ -1,0 +1,11 @@
+filename,doc_type,language,script,handwritten,image_quality,expected_title,expected_amount,expected_currency,expected_due_date,expected_expiry_date,expected_document_number,expected_person,expected_medicine,expected_dosage,expected_provider,expected_policy_number,expected_warranty_end,expected_application_deadline,notes
+bills/bill_bses_01.jpg,bill,english,latin,false,good,BSES Yamuna Electricity Bill,1847.00,INR,2026-09-05,,,Self,,,BSES Yamuna Power Limited,,,Account 102938475
+bills/bill_airtel_02.jpg,bill,english,latin,false,good,Airtel Broadband Bill,1179.00,INR,2026-09-12,,,Self,,,Airtel Broadband,,,Account 901829384
+bills/bill_water_03.jpg,bill,hindi,devanagari,false,acceptable,दिल्ली जल बोर्ड बिल,450.00,INR,2026-09-20,,,Home,,,दिल्ली जल बोर्ड,,,Original script: दिल्ली जल बोर्ड
+prescriptions/rx_apollo_01.jpg,prescription,english,latin,false,good,Apollo Hospital Prescription,,,,,,Mom,Thyronorm,50mcg 2 tablets daily,Apollo Healthcare,,,Dr. Sharma
+prescriptions/rx_max_02.jpg,prescription,english,latin,true,poor,Max Healthcare Prescription,,,,,,Dad,Metformin,500mg once daily,Max Super Speciality,,,Handwritten Dr. Gupta
+medicine_strips/strip_crocin_01.jpg,medicine_strip,english,latin,false,good,Crocin 650mg,,,,,,Self,Crocin 650mg,650mg,GSK Consumer Healthcare,,,Foil strip reflect
+medicine_strips/strip_pantocid_02.jpg,medicine_strip,english,latin,false,acceptable,Pantocid 40mg,,,,,,Self,Pantocid 40mg,40mg,Sun Pharma,,,Foil strip curve
+ids/id_aadhaar_synth.jpg,id,hindi,devanagari,false,good,Aadhaar Card,,,,,,Aniket Bhatia,,,UIDAI,,,Synthetic sample
+ids/id_pan_synth.jpg,id,english,latin,false,good,PAN Card,,,,,,Aniket Bhatia,,,Income Tax Department,,,Synthetic sample
+warranties/warranty_boat_01.jpg,warranty,english,latin,false,acceptable,Boat Rockerz Warranty,,,,,,,,,,Boat Electronics,,2026-10-15,,Invoice INV-92837

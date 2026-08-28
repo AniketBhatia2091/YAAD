@@ -1,0 +1,6 @@
+filename,doc_type,language,script,handwritten,image_quality,expected_title,expected_amount,expected_currency,expected_due_date,expected_expiry_date,expected_document_number,expected_person,expected_medicine,expected_dosage,expected_provider,expected_policy_number,expected_warranty_end,expected_application_deadline,notes
+bills/sample_electricity.jpg,bill,english,latin,false,good,BSES Electricity Bill,1847.00,INR,2026-09-05,,,Self,,,BSES Yamuna Power Limited,,,Account 102938475
+prescriptions/sample_printed_rx.jpg,prescription,english,latin,false,acceptable,Thyronorm 50mcg Prescription,,,,,,Mom,Thyronorm,50mcg 2 tablets daily,Apollo Hospital,,,Dr. Sharma
+medicine_strips/sample_strip.jpg,medicine_strip,english,latin,false,good,Crocin 650mg,,,,,,Self,Crocin 650mg,650mg,GSK,,,Foil strip
+ids/sample_aadhaar.jpg,id,hindi,devanagari,false,good,Aadhaar Card,,,,,,Aniket Bhatia,,,UIDAI,,,Original script: बिजली बिल
+warranties/sample_earbuds.jpg,warranty,english,latin,false,acceptable,Boat Rockerz Warranty,,,,,,,,,,Boat Electronics,,2026-10-15,,Invoice INV-92837

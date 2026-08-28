@@ -1,0 +1,4 @@
+# Ignore all image files to prevent committing sensitive or private user documents
+*
+!.gitignore
+!.gitkeep

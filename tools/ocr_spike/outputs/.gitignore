@@ -1,0 +1,4 @@
+# Ignore generated OCR output caches and temporary raw text dumps
+*
+!.gitignore
+!.gitkeep
