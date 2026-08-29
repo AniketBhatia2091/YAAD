@@ -5,15 +5,22 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional
 
+EXPLICIT_NON_VALUE_TOKENS = {"<NOT_PRESENT>", "<UNREADABLE>", "<NOT_APPLICABLE>"}
+
 
 @dataclass
 class GroundTruthRow:
     filename: str
     doc_type: str
+    doc_subtype: str
     language: str
     script: str
     handwritten: bool
     image_quality: str
+    source_type: str
+    page_count: int
+    field_visibility_status: str
+    annotation_confidence: str
     expected_title: str
     expected_amount: Optional[str] = None
     expected_currency: Optional[str] = None
@@ -43,7 +50,7 @@ class ExtractionResult:
 
 def normalize_text(text: Optional[str]) -> str:
     """Normalizes text for comparison while preserving Devanagari/Gurmukhi scripts."""
-    if not text:
+    if not text or text in EXPLICIT_NON_VALUE_TOKENS:
         return ""
     normalized = unicodedata.normalize("NFKD", text)
     normalized = re.sub(r"\s+", " ", normalized).strip()
@@ -52,7 +59,7 @@ def normalize_text(text: Optional[str]) -> str:
 
 def normalize_numeric(value: Optional[str]) -> Optional[float]:
     """Parses numeric amount representations like '₹1,847.00', 'Rs. 1847/-' into float."""
-    if not value:
+    if not value or value in EXPLICIT_NON_VALUE_TOKENS:
         return None
     clean = re.sub(r"[₹\$\,Rs\s\/\-]", "", str(value), flags=re.IGNORECASE)
     match = re.search(r"\d+(\.\d+)?", clean)
@@ -66,7 +73,7 @@ def normalize_numeric(value: Optional[str]) -> Optional[float]:
 
 def normalize_date(date_str: Optional[str]) -> Optional[str]:
     """Parses date representations and returns exact ISO 'YYYY-MM-DD'."""
-    if not date_str:
+    if not date_str or date_str in EXPLICIT_NON_VALUE_TOKENS:
         return None
     clean_str = date_str.strip()
     if re.match(r"^\d{4}-\d{2}-\d{2}$", clean_str):
@@ -99,10 +106,10 @@ def normalize_date(date_str: Optional[str]) -> Optional[str]:
 
 
 def match_strict_identifier(expected: Optional[str], actual: Optional[str]) -> bool:
-    """Strict exact match for document numbers / policy numbers (no loose substrings)."""
-    if not expected and not actual:
-        return True
-    if not expected or not actual:
+    """Strict exact match for document numbers / policy numbers."""
+    if expected in EXPLICIT_NON_VALUE_TOKENS or not expected:
+        return actual is None or actual in EXPLICIT_NON_VALUE_TOKENS or actual == ""
+    if not actual or actual in EXPLICIT_NON_VALUE_TOKENS:
         return False
     exp_clean = re.sub(r"[\s\-]", "", str(expected)).upper()
     act_clean = re.sub(r"[\s\-]", "", str(actual)).upper()
@@ -111,6 +118,8 @@ def match_strict_identifier(expected: Optional[str], actual: Optional[str]) -> b
 
 def match_numeric(expected: Optional[str], actual: Optional[str]) -> bool:
     """Strict exact numeric match within 0.001 tolerance."""
+    if expected in EXPLICIT_NON_VALUE_TOKENS or not expected:
+        return actual is None or actual in EXPLICIT_NON_VALUE_TOKENS or actual == ""
     exp_num = normalize_numeric(expected)
     act_num = normalize_numeric(actual)
     if exp_num is None and act_num is None:
@@ -122,6 +131,8 @@ def match_numeric(expected: Optional[str], actual: Optional[str]) -> bool:
 
 def match_date(expected: Optional[str], actual: Optional[str]) -> bool:
     """Strict exact date match comparing ISO YYYY-MM-DD representations."""
+    if expected in EXPLICIT_NON_VALUE_TOKENS or not expected:
+        return actual is None or actual in EXPLICIT_NON_VALUE_TOKENS or actual == ""
     exp_date = normalize_date(expected)
     act_date = normalize_date(actual)
     if exp_date is None and act_date is None:
@@ -133,9 +144,9 @@ def match_date(expected: Optional[str], actual: Optional[str]) -> bool:
 
 def match_strict_text(expected: Optional[str], actual: Optional[str]) -> bool:
     """Strict exact word match for medicine names & dosage."""
-    if not expected and not actual:
-        return True
-    if not expected or not actual:
+    if expected in EXPLICIT_NON_VALUE_TOKENS or not expected:
+        return actual is None or actual in EXPLICIT_NON_VALUE_TOKENS or actual == ""
+    if not actual or actual in EXPLICIT_NON_VALUE_TOKENS:
         return False
     exp_norm = normalize_text(expected)
     act_norm = normalize_text(actual)
@@ -144,15 +155,13 @@ def match_strict_text(expected: Optional[str], actual: Optional[str]) -> bool:
 
 def match_text(expected: Optional[str], actual: Optional[str]) -> bool:
     """Strict text matching checking full token set equality or exact match."""
-    if not expected and not actual:
-        return True
-    if not expected or not actual:
+    if expected in EXPLICIT_NON_VALUE_TOKENS or not expected:
+        return actual is None or actual in EXPLICIT_NON_VALUE_TOKENS or actual == ""
+    if not actual or actual in EXPLICIT_NON_VALUE_TOKENS:
         return False
     exp_norm = normalize_text(expected)
     act_norm = normalize_text(actual)
-    if exp_norm == act_norm:
-        return True
-    return False
+    return exp_norm == act_norm
 
 
 def load_ground_truth(csv_path: str) -> List[GroundTruthRow]:
@@ -165,10 +174,15 @@ def load_ground_truth(csv_path: str) -> List[GroundTruthRow]:
                 GroundTruthRow(
                     filename=(r.get("filename") or "").strip(),
                     doc_type=(r.get("doc_type") or "").strip().lower(),
+                    doc_subtype=(r.get("doc_subtype") or "general").strip().lower(),
                     language=(r.get("language") or "").strip().lower(),
                     script=(r.get("script") or "").strip().lower(),
                     handwritten=(r.get("handwritten") or "false").strip().lower() == "true",
                     image_quality=(r.get("image_quality") or "good").strip().lower(),
+                    source_type=(r.get("source_type") or "camera_photo").strip().lower(),
+                    page_count=int(r.get("page_count", 1) or 1),
+                    field_visibility_status=(r.get("field_visibility_status") or "all_visible").strip().lower(),
+                    annotation_confidence=(r.get("annotation_confidence") or "high").strip().lower(),
                     expected_title=(r.get("expected_title") or "").strip(),
                     expected_amount=(r.get("expected_amount") or "").strip() or None,
                     expected_currency=(r.get("expected_currency") or "").strip() or None,

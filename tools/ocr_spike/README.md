@@ -1,132 +1,109 @@
-# YAAD OCR & Structured Extraction Spike (v0.3)
+# YAAD OCR & Structured Extraction Spike (v0.4)
 
 A standalone evaluation harness to measure structured information extraction accuracy across real, messy Indian daily life documents (bills, prescriptions, medicine strips, IDs, warranties).
 
 ---
 
-## 1. Directory Structure
+## 1. Directory Architecture
 
 ```
 tools/ocr_spike/
-├── README.md                          # Documentation & execution guide
-├── setup.sh                           # Environment setup script
-├── run_all.sh                         # Full benchmark execution pipeline
-├── ground_truth_template.csv          # Annotated ground truth schema template
-├── ground_truth.csv                   # Benchmark evaluation dataset index
-├── images/                            # Test document image dataset
-│   ├── .gitignore                     # Prevents committing private user PII/images
-│   ├── bills/                         # Electricity, water, broadband bills
+├── README.md                          # Annotation guide, privacy rules & execution guide
+├── setup.sh                           # Dependency installer & system binary check
+├── run_all.sh                         # Master pipeline script with dataset validation
+├── ground_truth_template.csv          # Robust annotated ground truth schema template
+├── ground_truth.csv                   # Baseline ground truth index
+├── images/                            # Test document image dataset (Local only)
+│   ├── .gitignore                     # Prevents committing private PII image files
+│   ├── bills/                         # Household electricity, water, broadband bills
 │   ├── prescriptions/                 # Printed and handwritten prescriptions
+│   │   ├── printed/
+│   │   └── handwritten/
 │   ├── medicine_strips/               # Foil medicine strips (curved/reflective)
 │   ├── ids/                           # Synthetic / public sample IDs (Aadhaar, PAN)
 │   └── warranties/                    # Product warranties & purchase receipts
 ├── outputs/                           # Extraction outputs & evaluation results
 │   ├── .gitignore
-│   ├── tesseract_raw/                 # Raw Tesseract OCR text dumps
-│   ├── tesseract_enhanced/            # Image-preprocessed Tesseract OCR dumps
-│   ├── vision/                        # Vision LLM structured JSON extractions
-│   ├── score_results.csv              # Field-by-field evaluation breakdown
-│   ├── failure_analysis.csv           # Failure taxonomy categorizations
-│   ├── report.csv                     # Method x DocType & Method x Language matrices
-│   └── summary.md                     # Executive summary report
+│   ├── dataset_stats.csv, dataset_stats.md # Target completion & dataset distribution reports
+│   ├── score_results.csv, failure_analysis.csv, report.csv, summary.md
 ├── scripts/
-│   ├── common.py                      # Normalization, fuzzy matchers, GT reader
-│   ├── extract_tesseract.py           # Tesseract baseline & image enhancement pipeline
-│   ├── extract_vision.py              # Structured Vision API extraction script
-│   ├── score.py                       # Scoring engine, calibration & failure taxonomy
+│   ├── common.py                      # Schema definition, strict field matchers, ISO date/amount normalizers
+│   ├── validate_dataset.py            # Dataset validator checking schema, missing files & metadata
+│   ├── dataset_stats.py               # Dataset target checker & distribution metrics
+│   ├── vision_providers.py            # Multi-provider adapter (Google, OpenAI, Anthropic, REST)
+│   ├── stage1_preprocessing.py        # Stage 1: Contrast, sharpness, brightness analysis
+│   ├── stage2_ocr.py                  # Stage 2: Raw OCR recognition & character stats
+│   ├── stage3_parsing.py              # Stage 3: Candidate entity extraction
+│   ├── stage4_mapping.py              # Stage 4: Target schema field mapping
+│   ├── stage5_hallucination.py        # Stage 5: Hallucination & missing-value evidence check
+│   ├── extract_tesseract.py           # Tesseract baseline & image enhancement script
+│   ├── extract_vision.py              # Configurable Vision API extraction script
+│   ├── score.py                       # Scoring engine, calibration & stage failure taxonomy
 │   └── report.py                      # CSV report & Markdown summary generator
-└── tests/
-    └── test_ocr_spike.py             # Unit tests for matching rules & schema validation
+└── tests/                             # Unit tests & synthetic test fixtures
+    ├── fixtures/                      # Safe synthetic CSV fixtures (valid_gt.csv, invalid_meta_gt.csv)
+    └── test_ocr_spike.py             # Unit test suite covering validator, matchers & stats
 ```
 
 ---
 
-## 2. Privacy & Security Rules (CRITICAL)
+## 2. Human Annotation Guide & Rules
 
-The OCR spike evaluation dataset may involve sensitive documents.
-- **NEVER COMMIT TO GIT**:
-  - Real Aadhaar / PAN / Voter ID cards
-  - Real prescriptions containing identifiable patient information or medical history
-  - Real insurance policy numbers, home addresses, phone numbers, or private receipts
-- The `images/` and `outputs/` directories contain `.gitignore` files to ensure image files and OCR output dumps remain local and are never pushed to remote repositories.
-- Use only synthetic, public sample, or dummy test documents in committed examples.
+When adding ground-truth rows to `ground_truth.csv`, follow these strict rules:
+
+### Explicit Field Representations
+- **`<NOT_PRESENT>`**: Use when a field is not present anywhere on the document.
+- **`<UNREADABLE>`**: Use when a field is physically visible on the document but damaged, smudged, or unreadable.
+- **`<NOT_APPLICABLE>`**: Use when a field is structurally irrelevant to the document type (e.g. medicine name on an electricity bill).
+
+### Script & Language Rules
+- **Native Script Preservation**: Record text in its actual visible script (e.g. Devanagari `दिल्ली जल बोर्ड`, Gurmukhi `ਬਿਜਲੀ ਬਿਲ`). **Do not transliterate** Hindi or Punjabi into English during annotation.
+- **Date Normalization**: Normalize all visible dates to ISO `YYYY-MM-DD`. Record original date representation (e.g. `"5 Sep 2026"`) in the `notes` column.
+- **Amount Normalization**: Normalize monetary amounts to plain float strings (e.g. `1847.00`). Do not include currency symbols or commas.
 
 ---
 
-## 3. Installation & Setup
+## 3. Privacy & Security Protections (CRITICAL)
 
-### Environment Setup
-Run the setup script:
+The OCR spike evaluation dataset may involve sensitive Indian documents containing:
+- Aadhaar / PAN / Driver License numbers
+- Medical prescription details & patient names
+- Addresses, phone numbers, policy numbers, or banking details
+
+### Strict Privacy Safeguards
+1. **NEVER COMMIT REAL IMAGES**: The `images/` directory is ignored by `.gitignore`. Real document images must remain local only.
+2. **NEVER COMMIT CREDENTIALS**: API keys must be loaded via environment variables (`VISION_API_KEY`, `VISION_PROVIDER`, `VISION_MODEL`). Never hardcode or save API keys to repository files.
+3. **SAFE SYNTHETIC EXAMPLES**: README examples and unit tests use synthetic dummy data (`tests/fixtures/`).
+
+---
+
+## 4. Benchmark Target Distribution (~52 Images)
+
+| Category / Subtype | Target Count |
+| :--- | :--- |
+| **Household Bills** | 12 |
+| **Printed Prescriptions** | 8 |
+| **Handwritten Prescriptions** | 8 |
+| **Medicine Strips** | 10 |
+| **IDs** (Synthetic/Public) | 8 |
+| **Warranties / Invoices** | 6 |
+| **Total Target** | **52** |
+
+---
+
+## 5. Execution Commands
+
+### Validate Dataset & Metadata
 ```bash
-./setup.sh
+python3 scripts/validate_dataset.py --gt ground_truth.csv --img_dir images
 ```
 
-### Install Tesseract OCR Binary & Language Packs
-- **macOS**:
-  ```bash
-  brew install tesseract tesseract-lang
-  ```
-- **Linux (Ubuntu/Debian)**:
-  ```bash
-  sudo apt-get install tesseract-ocr tesseract-ocr-hin tesseract-ocr-pan
-  ```
-
----
-
-## 4. API Credentials Configuration
-
-Set your Vision API credentials via environment variables before running Vision extractions:
+### Calculate Dataset Target Completion & Distribution Statistics
 ```bash
-export VISION_API_KEY="your-gemini-or-vision-api-key"
-export VISION_MODEL="gemini-2.5-flash"  # Optional model override
+python3 scripts/dataset_stats.py --gt ground_truth.csv --out_dir outputs
 ```
 
----
-
-## 5. Execution Guide
-
-Run the full evaluation pipeline end-to-end:
+### Run Full Benchmark Pipeline
 ```bash
 ./run_all.sh
 ```
-
-Or execute individual steps:
-
-1. **Run Unit Tests**:
-   ```bash
-   python3 -m unittest discover -s tests
-   ```
-
-2. **Run Tesseract OCR Baseline**:
-   ```bash
-   python3 scripts/extract_tesseract.py --gt ground_truth.csv --img_dir images --out_dir outputs
-   ```
-
-3. **Run Structured Vision AI Extraction**:
-   ```bash
-   python3 scripts/extract_vision.py --gt ground_truth.csv --img_dir images --out_dir outputs
-   ```
-
-4. **Score Extractions & Analyze Calibration**:
-   ```bash
-   python3 scripts/score.py --gt ground_truth.csv --out_dir outputs
-   ```
-
-5. **Generate Summary Report**:
-   ```bash
-   python3 scripts/report.py --out_dir outputs
-   ```
-
----
-
-## 6. Scoring Methodology & Decision Thresholds
-
-### Field Matching Rules (`scripts/common.py`)
-- **Text**: Substring and token overlap after NFKD normalization. Preserves Hindi (Devanagari) and Punjabi (Gurmukhi) scripts without forced transliteration.
-- **Numeric**: Normalizes `₹1,847.00`, `Rs. 1847/-`, `1847.0` $\rightarrow$ `1847.0`.
-- **Date**: Normalizes `05/09/2026`, `5 Sep 2026`, `05-09-26` $\rightarrow$ ISO `2026-09-05`.
-
-### Decision Thresholds
-- **BUILD**: Printed bills / IDs ($\ge 90\%$ required-field accuracy).
-- **LIMITED BUILD**: Printed prescriptions ($\ge 85\%$) with user confirmation UX.
-- **DO NOT PROMISE**: Handwritten regional-language prescriptions (below reliable thresholds).

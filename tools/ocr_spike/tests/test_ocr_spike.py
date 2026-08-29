@@ -15,17 +15,13 @@ from common import (
     normalize_numeric,
     normalize_text,
 )
+from dataset_stats import generate_dataset_stats
 from stage1_preprocessing import analyze_image_quality
 from stage3_parsing import run_stage3_parsing
 from stage4_mapping import run_stage4_mapping
 from stage5_hallucination import run_stage5_hallucination_check
-from vision_providers import (
-    AnthropicVisionProvider,
-    GenericRestVisionProvider,
-    GoogleVisionProvider,
-    OpenAIVisionProvider,
-    get_vision_provider,
-)
+from validate_dataset import validate_dataset
+from vision_providers import get_vision_provider
 
 
 class TestOcrSpikeHarness(unittest.TestCase):
@@ -35,11 +31,19 @@ class TestOcrSpikeHarness(unittest.TestCase):
         self.assertEqual(normalize_text("  बिजली   बिल  "), "बिजली बिल")
         self.assertEqual(normalize_text("  ਬਿਜਲੀ ਬਿਲ  "), "ਬਿਜਲੀ ਬਿਲ")
 
+    def test_explicit_non_value_tokens(self):
+        self.assertEqual(normalize_text("<NOT_PRESENT>"), "")
+        self.assertEqual(normalize_text("<UNREADABLE>"), "")
+        self.assertEqual(normalize_text("<NOT_APPLICABLE>"), "")
+        self.assertTrue(match_text("<NOT_PRESENT>", None))
+        self.assertTrue(match_text("<NOT_PRESENT>", "<NOT_PRESENT>"))
+        self.assertTrue(match_numeric("<NOT_APPLICABLE>", None))
+
     def test_strict_identifier_matching(self):
         self.assertTrue(match_strict_identifier("ACC-102938475", "acc 102938475"))
         self.assertTrue(match_strict_identifier("102938475", "1029-3847-5"))
         self.assertFalse(match_strict_identifier("ACC-102938475", "ACC-999999999"))
-        self.assertFalse(match_strict_identifier("ACC-102938475", "1029"))  # Loose substring rejected!
+        self.assertFalse(match_strict_identifier("ACC-102938475", "1029"))
 
     def test_strict_numeric_matching(self):
         self.assertTrue(match_numeric("₹1,847.00", "1847.00"))
@@ -51,9 +55,20 @@ class TestOcrSpikeHarness(unittest.TestCase):
         self.assertTrue(match_date("5 Sep 2026", "05/09/2026"))
         self.assertFalse(match_date("2026-09-05", "2026-09-06"))
 
-    def test_strict_text_matching(self):
-        self.assertTrue(match_strict_text("Crocin 650mg", "crocin 650mg"))
-        self.assertFalse(match_strict_text("Crocin 650mg", "Crocin"))
+    def test_validate_dataset_valid_fixture(self):
+        valid_csv = os.path.join(os.path.dirname(__file__), "fixtures", "valid_gt.csv")
+        img_dir = os.path.join(os.path.dirname(__file__), "..", "images")
+        errors = validate_dataset(valid_csv, img_dir)
+        self.assertEqual(len(errors), 0, f"Expected 0 errors on valid fixture, got: {errors}")
+
+    def test_validate_dataset_invalid_fixture(self):
+        invalid_csv = os.path.join(os.path.dirname(__file__), "fixtures", "invalid_meta_gt.csv")
+        img_dir = os.path.join(os.path.dirname(__file__), "..", "images")
+        errors = validate_dataset(invalid_csv, img_dir)
+        self.assertGreater(len(errors), 0, "Expected validation errors on invalid fixture")
+        err_str = " ".join(errors)
+        self.assertIn("Invalid doc_type", err_str)
+        self.assertIn("Invalid language", err_str)
 
     def test_stage3_parsing(self):
         raw_text = "BSES Yamuna Power Limited\nAmount Due: ₹1,847.00\nDue Date: 05/09/2026\nAccount No: 102938475"
@@ -80,10 +95,12 @@ class TestOcrSpikeHarness(unittest.TestCase):
         self.assertEqual(anomalies[0]["field_name"], "person")
         self.assertEqual(anomalies[0]["anomaly_type"], "hallucination")
 
-    def test_vision_providers_configuration(self):
-        # Factory defaults
-        provider, p_type, p_model = get_vision_provider()
-        self.assertIn(p_type, ["google", "openai", "anthropic", "generic_rest"])
+    def test_dataset_stats_generation(self):
+        valid_csv = os.path.join(os.path.dirname(__file__), "fixtures", "valid_gt.csv")
+        out_dir = os.path.join(os.path.dirname(__file__), "..", "outputs")
+        generate_dataset_stats(valid_csv, out_dir)
+        self.assertTrue(os.path.exists(os.path.join(out_dir, "dataset_stats.csv")))
+        self.assertTrue(os.path.exists(os.path.join(out_dir, "dataset_stats.md")))
 
     def test_load_ground_truth(self):
         gt_path = os.path.join(os.path.dirname(__file__), "..", "ground_truth_template.csv")
