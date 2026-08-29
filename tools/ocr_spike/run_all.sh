@@ -4,6 +4,10 @@ set -e
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
+if [ -d "$HOME/Library/Python/3.9/lib/python/site-packages" ]; then
+    export PYTHONPATH="$HOME/Library/Python/3.9/lib/python/site-packages:$PYTHONPATH"
+fi
+
 echo "======================================================="
 echo "  YAAD OCR & Structured Extraction Spike (v0.3)"
 echo "======================================================="
