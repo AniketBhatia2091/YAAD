@@ -12,13 +12,15 @@ class Memories extends Table {
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
   TextColumn get owner => text().withDefault(const Constant('Self'))();
-  RealColumn get confidence => real().withDefault(const Constant(1.0))();
+  RealColumn get confidence => real().nullable()();
   DateTimeColumn get expiryDate => dateTime().nullable()();
   DateTimeColumn get dueDate => dateTime().nullable()();
   RealColumn get amount => real().nullable()();
   TextColumn get actionTitle => text().nullable()();
   TextColumn get actionSubtitle => text().nullable()();
   BoolColumn get isAttentionRequired => boolean().withDefault(const Constant(false))();
+  TextColumn get subtitle => text().nullable()();
+  TextColumn get metadata => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

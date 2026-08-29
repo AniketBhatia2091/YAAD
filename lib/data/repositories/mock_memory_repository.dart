@@ -235,6 +235,14 @@ class MockMemoryRepository implements MemoryRepository {
   }
 
   @override
+  Future<void> updateMemory(Memory memory) async {
+    final index = _memories.indexWhere((m) => m.id == memory.id);
+    if (index != -1) {
+      _memories[index] = memory;
+    }
+  }
+
+  @override
   Future<void> deleteMemory(String id) async {
     _memories.removeWhere((m) => m.id == id);
   }

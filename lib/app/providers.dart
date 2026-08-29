@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/services/camera_service.dart';
 import '../core/services/storage_service.dart';
+import '../data/database/app_database.dart';
 import '../data/models/memory.dart';
 import '../data/models/vault_category.dart';
 import '../data/repositories/local_memory_repository.dart';
@@ -22,6 +23,15 @@ final storageServiceProvider = Provider<StorageService>((ref) {
 /// Camera Service Provider
 final cameraServiceProvider = ChangeNotifierProvider<CameraService>((ref) {
   return CameraService();
+});
+
+/// AppDatabase Provider — single SQLite connection across the application lifecycle.
+final appDatabaseProvider = Provider<AppDatabase>((ref) {
+  final db = AppDatabase();
+  ref.onDispose(() {
+    db.close();
+  });
+  return db;
 });
 
 /// Onboarding State Repository Provider
@@ -55,7 +65,11 @@ class OnboardingNotifier extends StateNotifier<bool> {
 /// Memory Repository Provider (Backed by LocalMemoryRepository & SQLite Storage)
 final memoryRepositoryProvider = Provider<MemoryRepository>((ref) {
   final storage = ref.watch(storageServiceProvider);
-  return LocalMemoryRepository(storageService: storage);
+  final database = ref.watch(appDatabaseProvider);
+  return LocalMemoryRepository(
+    storageService: storage,
+    database: database,
+  );
 });
 
 /// Memory by ID Provider

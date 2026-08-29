@@ -2,77 +2,77 @@ import 'package:flutter/material.dart';
 
 import '../../app/theme/color_tokens.dart';
 import '../../core/services/storage_service.dart';
+import '../database/app_database.dart';
 import '../models/memory.dart';
 import '../models/vault_category.dart';
 import 'memory_repository.dart';
 import 'mock_memory_repository.dart';
 
 /// Concrete production repository handling real local Memory persistence backed by
-/// local disk storage (StorageService) and SQLite database layer.
+/// SQLite database layer (AppDatabase) as the single source of truth,
+/// and local disk storage (StorageService) for physical images.
 class LocalMemoryRepository implements MemoryRepository {
   final StorageService _storageService;
+  final AppDatabase _database;
   final MockMemoryRepository _mockRepository;
-  final List<Memory> _localMemories = [];
 
   LocalMemoryRepository({
     required StorageService storageService,
+    AppDatabase? database,
     MockMemoryRepository? mockRepository,
   })  : _storageService = storageService,
+        _database = database ?? AppDatabase(),
         _mockRepository = mockRepository ?? MockMemoryRepository();
+
+  AppDatabase get database => _database;
 
   @override
   Future<void> createMemory(Memory memory) async {
-    _localMemories.insert(0, memory);
+    await _database.insertMemory(memory);
   }
 
   @override
   Future<Memory?> getMemoryById(String id) async {
-    try {
-      return _localMemories.firstWhere((m) => m.id == id);
-    } catch (_) {
-      try {
-        final mockList = await _mockRepository.getAllMemories();
-        return mockList.firstWhere((m) => m.id == id);
-      } catch (_) {
-        return null;
-      }
-    }
+    final dbMemory = await _database.getMemoryById(id);
+    if (dbMemory != null) return dbMemory;
+    return _mockRepository.getMemoryById(id);
   }
 
   @override
   Future<List<Memory>> getRecentlyRemembered() async {
-    // Real local memories appear at top of Recently Remembered section, demo items below
+    final dbMemories = await _database.getRecentMemories(limit: 6);
     final mockItems = await _mockRepository.getRecentlyRemembered();
-    final combined = [..._localMemories, ...mockItems];
+    final combined = [...dbMemories, ...mockItems];
     return combined.take(6).toList();
   }
 
   @override
   Future<List<Memory>> getAttentionItems() async {
-    final localAttention = _localMemories.where((m) => m.isAttentionRequired).toList();
+    final dbAttention = await _database.getAttentionMemories();
     final mockAttention = await _mockRepository.getAttentionItems();
-    return [...localAttention, ...mockAttention];
+    return [...dbAttention, ...mockAttention];
   }
 
   @override
   Future<List<Memory>> getUpcomingItems() async {
-    final localUpcoming = _localMemories.where((m) => !m.isAttentionRequired && (m.expiryDate != null || m.dueDate != null)).toList();
+    final dbUpcoming = await _database.getUpcomingMemories();
     final mockUpcoming = await _mockRepository.getUpcomingItems();
-    return [...localUpcoming, ...mockUpcoming];
+    return [...dbUpcoming, ...mockUpcoming];
   }
 
   @override
   Future<List<Memory>> getAllMemories() async {
+    final dbAll = await _database.getAllMemories();
     final mockAll = await _mockRepository.getAllMemories();
-    return [..._localMemories, ...mockAll];
+    return [...dbAll, ...mockAll];
   }
 
   @override
   Future<List<VaultCategory>> getVaultCategories() async {
+    final dbMemories = await _database.getAllMemories();
     final baseCategories = await _mockRepository.getVaultCategories();
-    final unsortedCount = _localMemories.where((m) => m.categoryKey == 'unsorted').length;
+    final unsortedCount = dbMemories.where((m) => m.categoryKey == 'unsorted').length;
 
-    // Insert "Unsorted" category at top if there are unclassified memories, or as fallback
     final unsortedCategory = VaultCategory(
       key: 'unsorted',
       title: 'Unsorted Memories',
@@ -83,29 +83,59 @@ class LocalMemoryRepository implements MemoryRepository {
       count: unsortedCount,
     );
 
-    return [unsortedCategory, ...baseCategories];
+    final updatedCategories = baseCategories.map((cat) {
+      final realCountInCat = dbMemories.where((m) => m.categoryKey == cat.key).length;
+      if (realCountInCat > 0) {
+        return VaultCategory(
+          key: cat.key,
+          title: cat.title,
+          description: cat.description,
+          icon: cat.icon,
+          backgroundColor: cat.backgroundColor,
+          iconColor: cat.iconColor,
+          count: cat.count + realCountInCat,
+        );
+      }
+      return cat;
+    }).toList();
+
+    return [unsortedCategory, ...updatedCategories];
   }
 
   @override
   Future<List<Memory>> searchMemories(String query) async {
     final q = query.trim().toLowerCase();
-    final all = await getAllMemories();
-    if (q.isEmpty) return all;
+    if (q.isEmpty) return getAllMemories();
 
-    return all.where((m) {
-      return m.title.toLowerCase().contains(q) ||
-          m.documentType.toLowerCase().contains(q) ||
-          m.categoryKey.toLowerCase().contains(q) ||
-          m.owner.toLowerCase().contains(q) ||
-          (m.extractedText?.toLowerCase().contains(q) ?? false) ||
-          (m.metadata?.toLowerCase().contains(q) ?? false);
-    }).toList();
+    final dbMatches = await _database.searchMemories(q);
+    final mockMatches = await _mockRepository.searchMemories(q);
+
+    final dbIds = dbMatches.map((m) => m.id).toSet();
+    final uniqueMockMatches = mockMatches.where((m) => !dbIds.contains(m.id));
+
+    return [...dbMatches, ...uniqueMockMatches];
+  }
+
+  @override
+  Future<void> updateMemory(Memory memory) async {
+    await _database.updateMemory(memory);
+    await _mockRepository.updateMemory(memory);
   }
 
   @override
   Future<void> deleteMemory(String id) async {
-    _localMemories.removeWhere((m) => m.id == id);
-    // Delete physical folder memories/<id>/ from disk
-    await _storageService.deleteMemoryStorage(id);
+    try {
+      await _database.deleteMemory(id);
+    } catch (e) {
+      debugPrint('Error deleting memory from SQLite: $e');
+    }
+
+    try {
+      await _storageService.deleteMemoryStorage(id);
+    } catch (e) {
+      debugPrint('Error deleting physical storage for memory: $e');
+    }
+
+    await _mockRepository.deleteMemory(id);
   }
 }

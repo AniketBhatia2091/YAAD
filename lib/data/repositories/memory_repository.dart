@@ -11,5 +11,6 @@ abstract class MemoryRepository {
   Future<List<Memory>> getAllMemories();
   Future<List<VaultCategory>> getVaultCategories();
   Future<List<Memory>> searchMemories(String query);
+  Future<void> updateMemory(Memory memory);
   Future<void> deleteMemory(String id);
 }

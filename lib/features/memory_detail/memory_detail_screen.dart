@@ -66,6 +66,8 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
 
       // Invalidate memory providers
       ref.invalidate(recentlyRememberedProvider);
+      ref.invalidate(attentionItemsProvider);
+      ref.invalidate(upcomingItemsProvider);
       ref.invalidate(vaultCategoriesProvider);
       ref.invalidate(searchResultsProvider);
 

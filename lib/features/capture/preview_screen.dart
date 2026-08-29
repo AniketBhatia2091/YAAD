@@ -69,6 +69,8 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
 
       // Invalidate providers so Home, Vault, and Search reflect the new memory immediately
       ref.invalidate(recentlyRememberedProvider);
+      ref.invalidate(attentionItemsProvider);
+      ref.invalidate(upcomingItemsProvider);
       ref.invalidate(vaultCategoriesProvider);
       ref.invalidate(searchResultsProvider);
 
