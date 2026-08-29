@@ -10,6 +10,8 @@ import '../../app/theme/radius_tokens.dart';
 import '../../app/theme/shadow_tokens.dart';
 import '../../app/theme/spacing_tokens.dart';
 import '../../app/theme/typography_tokens.dart';
+import '../../core/services/understanding/understanding_result.dart';
+import '../../data/models/memory.dart';
 
 class MemoryDetailScreen extends ConsumerStatefulWidget {
   final String memoryId;
@@ -127,7 +129,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Image Preview Container
+                  // Image Preview Container (Always preserved)
                   Container(
                     width: double.infinity,
                     constraints: const BoxConstraints(maxHeight: 320),
@@ -156,7 +158,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
                             ),
                           ),
                   ),
-                  const SizedBox(height: YaadSpacing.lg),
+                  const SizedBox(height: YaadSpacing.md),
 
                   // Metadata Header Card
                   Container(
@@ -172,10 +174,13 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              memory.title,
-                              style: YaadTypography.titleLarge,
+                            Expanded(
+                              child: Text(
+                                memory.displayTitle,
+                                style: YaadTypography.titleLarge,
+                              ),
                             ),
+                            const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: const BoxDecoration(
@@ -208,38 +213,16 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
                   ),
                   const SizedBox(height: YaadSpacing.md),
 
-                  // Unclassified Notice Banner
-                  Container(
-                    padding: YaadSpacing.cardPadding,
-                    decoration: BoxDecoration(
-                      color: YaadColors.accentLight,
-                      borderRadius: YaadRadius.borderLg,
-                      border: Border.all(color: const Color(0x4DD97706)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.auto_awesome_outlined, color: YaadColors.accent, size: 22),
-                            const SizedBox(width: 8),
-                            Text(
-                              'YAAD hasn\'t understood this yet.',
-                              style: YaadTypography.titleSmall.copyWith(color: YaadColors.primary),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'What\'s next:\nYAAD will identify and understand this memory when the intelligence layer is connected.',
-                          style: YaadTypography.bodyMedium.copyWith(
-                            color: YaadColors.textSecondaryLight,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  // Understanding Section: Confirmed vs NeedsReview vs Unknown
+                  if (memory.understandingStatus == UnderstandingStatus.confirmed &&
+                      memory.structuredFields.isNotEmpty) ...[
+                    _buildConfirmedUnderstandingSection(context, memory),
+                  ] else if (memory.understandingStatus == UnderstandingStatus.needsReview) ...[
+                    _buildNeedsReviewBanner(context, memory),
+                  ] else ...[
+                    _buildUnclassifiedNoticeBanner(context, memory),
+                  ],
+
                   const SizedBox(height: YaadSpacing.xl),
 
                   // Delete Memory Button
@@ -273,6 +256,161 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (err, stack) => Center(child: Text('Failed to load memory detail: ${err.toString()}')),
         ),
+      ),
+    );
+  }
+
+  /// Displays the confirmed structured fields extracted and verified by the user.
+  Widget _buildConfirmedUnderstandingSection(BuildContext context, Memory memory) {
+    return Container(
+      padding: YaadSpacing.cardPadding,
+      decoration: BoxDecoration(
+        color: YaadColors.surfaceLight,
+        borderRadius: YaadRadius.borderLg,
+        border: Border.all(color: YaadColors.borderLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.verified_rounded, color: YaadColors.success, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'What YAAD remembers',
+                    style: YaadTypography.titleMedium.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              TextButton(
+                onPressed: () {
+                  context.push('/understanding/${memory.id}');
+                },
+                child: const Text('Edit'),
+              ),
+            ],
+          ),
+          const Divider(height: 20),
+          for (final field in memory.structuredFields)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    field.displayLabel,
+                    style: YaadTypography.labelSmall.copyWith(
+                      color: YaadColors.textMutedLight,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    field.value ?? 'Not specified',
+                    style: YaadTypography.bodyLarge.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: YaadColors.textPrimaryLight,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Displays banner when understanding was run but needs user review.
+  Widget _buildNeedsReviewBanner(BuildContext context, Memory memory) {
+    return Container(
+      padding: YaadSpacing.cardPadding,
+      decoration: BoxDecoration(
+        color: YaadColors.attentionWarningBg,
+        borderRadius: YaadRadius.borderLg,
+        border: Border.all(color: const Color(0x4DD97706)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome_rounded, color: YaadColors.attentionWarning, size: 22),
+              const SizedBox(width: 8),
+              Text(
+                'Review understanding',
+                style: YaadTypography.titleSmall.copyWith(color: YaadColors.primary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'YAAD found structured details on this document. Review and confirm them.',
+            style: YaadTypography.bodyMedium.copyWith(
+              color: YaadColors.textSecondaryLight,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: () {
+              context.push('/understanding/${memory.id}');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: YaadColors.accent,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 38),
+            ),
+            child: const Text('Review understanding'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Displays fallback banner for unclassified / unknown understanding state.
+  Widget _buildUnclassifiedNoticeBanner(BuildContext context, Memory memory) {
+    return Container(
+      padding: YaadSpacing.cardPadding,
+      decoration: BoxDecoration(
+        color: YaadColors.accentLight,
+        borderRadius: YaadRadius.borderLg,
+        border: Border.all(color: const Color(0x4DD97706)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome_outlined, color: YaadColors.accent, size: 22),
+              const SizedBox(width: 8),
+              Text(
+                'YAAD hasn\'t understood this yet.',
+                style: YaadTypography.titleSmall.copyWith(color: YaadColors.primary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'What\'s next:\nYAAD will identify and understand this memory when the intelligence layer is connected.',
+            style: YaadTypography.bodyMedium.copyWith(
+              color: YaadColors.textSecondaryLight,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: () {
+              context.push('/understanding/${memory.id}');
+            },
+            icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+            label: const Text('Understand memory'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 38),
+            ),
+          ),
+        ],
       ),
     );
   }

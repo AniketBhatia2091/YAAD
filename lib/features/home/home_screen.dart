@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:intl/intl.dart';
+
 import '../../app/providers.dart';
 import '../../app/theme/color_tokens.dart';
 import '../../app/theme/radius_tokens.dart';
@@ -9,6 +11,7 @@ import '../../app/theme/shadow_tokens.dart';
 import '../../app/theme/spacing_tokens.dart';
 import '../../app/theme/typography_tokens.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/services/understanding/understanding_result.dart';
 import '../../data/models/memory.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -334,28 +337,46 @@ class HomeScreen extends ConsumerWidget {
 
   Widget _buildRecentlyRememberedHorizontal(BuildContext context, List<Memory> items) {
     return SizedBox(
-      height: 110,
+      height: 125,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: items.length,
         itemBuilder: (context, index) {
           final item = items[index];
+          final isConfirmed = item.understandingStatus == UnderstandingStatus.confirmed;
           final isRealLocal = item.categoryKey == 'unsorted' || item.imagePath != null;
+
+          // Important field resolution for confirmed memories
+          String? importantField;
+          if (item.amount != null) {
+            importantField = '₹${item.amount!.toStringAsFixed(0)}';
+            if (item.dueDate != null) {
+              importantField = '$importantField · Due ${DateFormat('d MMM').format(item.dueDate!)}';
+            }
+          } else if (item.dueDate != null) {
+            importantField = 'Due ${DateFormat('d MMM').format(item.dueDate!)}';
+          } else if (item.expiryDate != null) {
+            importantField = 'Expires ${DateFormat('d MMM').format(item.expiryDate!)}';
+          } else if (item.subtitle != null && item.subtitle != 'Unclassified memory') {
+            importantField = item.subtitle;
+          }
 
           return GestureDetector(
             onTap: () => context.push('/memory/${item.id}'),
             child: Container(
-              width: 160,
+              width: 170,
               margin: const EdgeInsets.only(right: 12),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isRealLocal ? YaadColors.accentLight : YaadColors.surfaceLight,
+                color: isConfirmed
+                    ? YaadColors.surfaceLight
+                    : YaadColors.surfaceSubtleLight,
                 borderRadius: YaadRadius.borderLg,
                 border: Border.all(
-                  color: isRealLocal ? YaadColors.accent : YaadColors.borderLight,
-                  width: isRealLocal ? 1.5 : 1,
+                  color: isConfirmed ? YaadColors.accent : YaadColors.borderLight,
+                  width: isConfirmed ? 1.2 : 1,
                 ),
-                boxShadow: YaadShadows.subtle,
+                boxShadow: isConfirmed ? YaadShadows.subtle : null,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -364,25 +385,32 @@ class HomeScreen extends ConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: isRealLocal ? Colors.white : YaadColors.surfaceSubtleLight,
-                          borderRadius: YaadRadius.borderSm,
-                        ),
-                        child: Icon(
-                          isRealLocal ? Icons.camera_alt_outlined : Icons.bookmark_outline,
-                          size: 16,
-                          color: isRealLocal ? YaadColors.accent : YaadColors.primary,
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isConfirmed ? YaadColors.accentLight : Colors.white,
+                            borderRadius: YaadRadius.borderSm,
+                          ),
+                          child: Text(
+                            isConfirmed ? item.documentType.toUpperCase() : 'NOT UNDERSTOOD',
+                            style: YaadTypography.labelSmall.copyWith(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: isConfirmed ? YaadColors.accent : YaadColors.textMutedLight,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ),
-                      Text(
-                        isRealLocal ? 'Captured' : item.owner,
-                        style: YaadTypography.labelSmall.copyWith(
-                          fontSize: 10,
-                          fontWeight: isRealLocal ? FontWeight.bold : FontWeight.normal,
-                          color: isRealLocal ? YaadColors.accent : YaadColors.textMutedLight,
-                        ),
+                      const SizedBox(width: 6),
+                      Icon(
+                        isConfirmed
+                            ? Icons.verified_rounded
+                            : (isRealLocal ? Icons.camera_alt_outlined : Icons.bookmark_outline),
+                        size: 14,
+                        color: isConfirmed ? YaadColors.success : YaadColors.textMutedLight,
                       ),
                     ],
                   ),
@@ -390,17 +418,26 @@ class HomeScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        item.title,
-                        style: YaadTypography.titleSmall.copyWith(fontSize: 14),
+                        isConfirmed ? item.displayTitle : 'Untitled memory',
+                        style: YaadTypography.titleSmall.copyWith(
+                          fontSize: 13,
+                          color: isConfirmed ? YaadColors.textPrimaryLight : YaadColors.textSecondaryLight,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        item.documentType,
+                        isConfirmed
+                            ? (importantField ?? item.documentType)
+                            : 'Not understood yet',
                         style: YaadTypography.labelSmall.copyWith(
-                          color: YaadColors.textMutedLight,
+                          color: isConfirmed ? YaadColors.textSecondaryLight : YaadColors.textMutedLight,
+                          fontSize: 11,
+                          fontWeight: isConfirmed ? FontWeight.w600 : FontWeight.normal,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),

@@ -168,7 +168,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          memory.title,
+                                          memory.displayTitle,
                                           style: YaadTypography.titleMedium,
                                         ),
                                         const SizedBox(height: 2),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../app/theme/color_tokens.dart';
+import '../../core/services/understanding/understanding_field.dart';
+import '../../core/services/understanding/understanding_result.dart';
 import '../models/memory.dart';
 import '../models/vault_category.dart';
 import 'memory_repository.dart';
@@ -227,10 +229,15 @@ class MockMemoryRepository implements MemoryRepository {
     final q = query.toLowerCase();
     return _memories.where((m) {
       return m.title.toLowerCase().contains(q) ||
+          (m.titleOverride?.toLowerCase().contains(q) ?? false) ||
           m.documentType.toLowerCase().contains(q) ||
           m.owner.toLowerCase().contains(q) ||
           m.categoryKey.toLowerCase().contains(q) ||
-          (m.extractedText?.toLowerCase().contains(q) ?? false);
+          (m.extractedText?.toLowerCase().contains(q) ?? false) ||
+          (m.subtitle?.toLowerCase().contains(q) ?? false) ||
+          m.structuredFields.any((f) =>
+              f.fieldName.toLowerCase().contains(q) ||
+              (f.value?.toLowerCase().contains(q) ?? false));
     }).toList();
   }
 
@@ -240,6 +247,40 @@ class MockMemoryRepository implements MemoryRepository {
     if (index != -1) {
       _memories[index] = memory;
     }
+  }
+
+  @override
+  Future<void> updateUnderstanding(String memoryId, UnderstandingResult result) async {
+    final memory = await getMemoryById(memoryId);
+    if (memory == null) return;
+    final updated = memory.copyWith(
+      understandingStatus: result.status,
+      documentType: result.documentType ?? memory.documentType,
+      categoryKey: result.categoryKey ?? memory.categoryKey,
+      structuredFields: result.fields,
+      confidence: result.overallConfidence ?? memory.confidence,
+      understoodAt: result.understoodAt ?? (result.status == UnderstandingStatus.confirmed ? DateTime.now() : memory.understoodAt),
+      updatedAt: DateTime.now(),
+    );
+    await updateMemory(updated);
+  }
+
+  @override
+  Future<void> updateStructuredField(String memoryId, UnderstandingField field) async {
+    final memory = await getMemoryById(memoryId);
+    if (memory == null) return;
+    final updatedFields = List<UnderstandingField>.from(memory.structuredFields);
+    final index = updatedFields.indexWhere((f) => f.fieldName.toLowerCase() == field.fieldName.toLowerCase());
+    if (index != -1) {
+      updatedFields[index] = field;
+    } else {
+      updatedFields.add(field);
+    }
+    final updated = memory.copyWith(
+      structuredFields: updatedFields,
+      updatedAt: DateTime.now(),
+    );
+    await updateMemory(updated);
   }
 
   @override

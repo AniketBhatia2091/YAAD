@@ -22,6 +22,12 @@ class Memories extends Table {
   TextColumn get subtitle => text().nullable()();
   TextColumn get metadata => text().nullable()();
 
+  // v0.8 Understanding & Review Pipeline columns
+  TextColumn get understandingStatus => text().withDefault(const Constant('unknown'))();
+  DateTimeColumn get understoodAt => dateTime().nullable()();
+  TextColumn get structuredFieldsJson => text().nullable()();
+  TextColumn get titleOverride => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yadd/core/services/storage_service.dart';
+import 'package:yadd/core/services/understanding/understanding_field.dart';
+import 'package:yadd/core/services/understanding/understanding_result.dart';
 import 'package:yadd/data/database/app_database.dart';
 import 'package:yadd/data/models/memory.dart';
 import 'package:yadd/data/repositories/local_memory_repository.dart';
@@ -194,5 +196,39 @@ void main() {
     final all = await repository.getAllMemories();
     expect(all.any((m) => m.id == 'uuid-real-1'), isTrue);
     expect(all.any((m) => m.id == 'mem_1'), isTrue);
+  });
+
+  test('LocalMemoryRepository updates understanding status and structured fields in SQLite', () async {
+    final memory = Memory.createUnclassified(id: 'uuid-und-1', imagePath: '/path');
+    await repository.createMemory(memory);
+
+    const result = UnderstandingResult(
+      status: UnderstandingStatus.confirmed,
+      documentType: 'Health Insurance',
+      categoryKey: 'medical',
+      fields: [
+        UnderstandingField(
+          fieldName: 'policyNumber',
+          value: 'HDFC-882910',
+          confidence: FieldConfidence.high,
+          source: FieldSource.visible,
+        ),
+      ],
+    );
+
+    await repository.updateUnderstanding('uuid-und-1', result);
+
+    final fetched = await repository.getMemoryById('uuid-und-1');
+    expect(fetched, isNotNull);
+    expect(fetched!.understandingStatus, equals(UnderstandingStatus.confirmed));
+    expect(fetched.documentType, equals('Health Insurance'));
+    expect(fetched.categoryKey, equals('medical'));
+    expect(fetched.structuredFields.length, equals(1));
+    expect(fetched.structuredFields.first.fieldName, equals('policyNumber'));
+    expect(fetched.structuredFields.first.value, equals('HDFC-882910'));
+
+    // Search by structured field value
+    final searchMatches = await repository.searchMemories('882910');
+    expect(searchMatches.any((m) => m.id == 'uuid-und-1'), isTrue);
   });
 }

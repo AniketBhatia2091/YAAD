@@ -75,8 +75,8 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
       ref.invalidate(searchResultsProvider);
 
       if (mounted) {
-        // Navigate to MemoryDetailScreen
-        context.go('/memory/$memoryId');
+        // Navigate to UnderstandingScreen
+        context.go('/understanding/$memoryId');
       }
     } catch (e) {
       if (mounted) {

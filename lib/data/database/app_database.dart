@@ -1,15 +1,20 @@
+import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
+import '../../core/services/understanding/understanding_field.dart';
+import '../../core/services/understanding/understanding_result.dart';
 import '../models/memory.dart';
 
 class _YaadExecutorUser extends QueryExecutorUser {
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   Future<void> beforeOpen(QueryExecutor executor, OpeningDetails details) async {
     await executor.ensureOpen(this);
+
+    // Create base table if it doesn't exist
     await executor.runCustom('''
       CREATE TABLE IF NOT EXISTS memories (
         id TEXT PRIMARY KEY,
@@ -29,9 +34,40 @@ class _YaadExecutorUser extends QueryExecutorUser {
         action_subtitle TEXT,
         is_attention_required INTEGER NOT NULL DEFAULT 0,
         subtitle TEXT,
-        metadata TEXT
+        metadata TEXT,
+        understanding_status TEXT NOT NULL DEFAULT 'unknown',
+        understood_at INTEGER,
+        structured_fields_json TEXT,
+        title_override TEXT
       );
     ''');
+
+    // Migration logic for databases created in v1: safely check columns and add if missing
+    final tableInfo = await executor.runSelect('PRAGMA table_info(memories);', []);
+    final existingColumns = tableInfo.map((row) => (row['name'] as String).toLowerCase()).toSet();
+
+    if (!existingColumns.contains('understanding_status')) {
+      await executor.runCustom(
+        "ALTER TABLE memories ADD COLUMN understanding_status TEXT NOT NULL DEFAULT 'unknown';",
+      );
+    }
+    if (!existingColumns.contains('understood_at')) {
+      await executor.runCustom(
+        'ALTER TABLE memories ADD COLUMN understood_at INTEGER;',
+      );
+    }
+    if (!existingColumns.contains('structured_fields_json')) {
+      await executor.runCustom(
+        'ALTER TABLE memories ADD COLUMN structured_fields_json TEXT;',
+      );
+    }
+    if (!existingColumns.contains('title_override')) {
+      await executor.runCustom(
+        'ALTER TABLE memories ADD COLUMN title_override TEXT;',
+      );
+    }
+
+    // Indices for query performance
     await executor.runCustom('''
       CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories (created_at DESC);
     ''');
@@ -44,7 +80,7 @@ class _YaadExecutorUser extends QueryExecutorUser {
 /// YAAD Local SQLite Database — Drift QueryExecutor backed persistent storage.
 ///
 /// This serves as the single source of truth for memory metadata.
-/// Binary image files are stored separately by [StorageService].
+/// Binary image files are stored separately by StorageService.
 class AppDatabase {
   final QueryExecutor executor;
   final _YaadExecutorUser _user = _YaadExecutorUser();
@@ -67,13 +103,18 @@ class AppDatabase {
   /// Insert or replace a memory record into SQLite.
   Future<void> insertMemory(Memory memory) async {
     await initDatabase();
+    final structuredJson = memory.structuredFields.isNotEmpty
+        ? jsonEncode(memory.structuredFields.map((f) => f.toJson()).toList())
+        : null;
+
     await executor.runInsert(
       '''
       INSERT OR REPLACE INTO memories (
         id, title, document_type, category_key, image_path, extracted_text,
         created_at, updated_at, owner, confidence, expiry_date, due_date,
-        amount, action_title, action_subtitle, is_attention_required, subtitle, metadata
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        amount, action_title, action_subtitle, is_attention_required, subtitle, metadata,
+        understanding_status, understood_at, structured_fields_json, title_override
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''',
       [
         memory.id,
@@ -94,6 +135,10 @@ class AppDatabase {
         memory.isAttentionRequired ? 1 : 0,
         memory.subtitle,
         memory.metadata,
+        memory.understandingStatus.name,
+        memory.understoodAt?.millisecondsSinceEpoch,
+        structuredJson,
+        memory.titleOverride,
       ],
     );
   }
@@ -155,7 +200,7 @@ class AppDatabase {
     return rows.map(_rowToMemory).toList();
   }
 
-  /// Search memories across text fields using SQL LIKE patterns.
+  /// Search memories across text fields and structured fields JSON using SQL LIKE patterns.
   Future<List<Memory>> searchMemories(String query) async {
     await initDatabase();
     final q = query.trim().toLowerCase();
@@ -172,9 +217,11 @@ class AppDatabase {
          OR (extracted_text IS NOT NULL AND LOWER(extracted_text) LIKE ?)
          OR (subtitle IS NOT NULL AND LOWER(subtitle) LIKE ?)
          OR (metadata IS NOT NULL AND LOWER(metadata) LIKE ?)
-      ORDER BY created_at DESC
+         OR (structured_fields_json IS NOT NULL AND LOWER(structured_fields_json) LIKE ?)
+         OR (title_override IS NOT NULL AND LOWER(title_override) LIKE ?)
+      ORDER BY created_at DESC, rowid DESC
       ''',
-      [pattern, pattern, pattern, pattern, pattern, pattern, pattern],
+      [pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern],
     );
     return rows.map(_rowToMemory).toList();
   }
@@ -184,6 +231,10 @@ class AppDatabase {
   /// Update an existing memory record.
   Future<void> updateMemory(Memory memory) async {
     await initDatabase();
+    final structuredJson = memory.structuredFields.isNotEmpty
+        ? jsonEncode(memory.structuredFields.map((f) => f.toJson()).toList())
+        : null;
+
     await executor.runUpdate(
       '''
       UPDATE memories SET
@@ -203,7 +254,11 @@ class AppDatabase {
         action_subtitle = ?,
         is_attention_required = ?,
         subtitle = ?,
-        metadata = ?
+        metadata = ?,
+        understanding_status = ?,
+        understood_at = ?,
+        structured_fields_json = ?,
+        title_override = ?
       WHERE id = ?
       ''',
       [
@@ -224,6 +279,10 @@ class AppDatabase {
         memory.isAttentionRequired ? 1 : 0,
         memory.subtitle,
         memory.metadata,
+        memory.understandingStatus.name,
+        memory.understoodAt?.millisecondsSinceEpoch,
+        structuredJson,
+        memory.titleOverride,
         memory.id,
       ],
     );
@@ -249,6 +308,27 @@ class AppDatabase {
   // ─── MAPPING ─────────────────────────────────────────────────────────────────
 
   Memory _rowToMemory(Map<String, Object?> row) {
+    // Deserialize structured fields JSON if present
+    List<UnderstandingField> structuredFields = const [];
+    final structuredJson = row['structured_fields_json'] as String?;
+    if (structuredJson != null && structuredJson.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(structuredJson) as List<dynamic>;
+        structuredFields = decoded
+            .map((item) => UnderstandingField.fromJson(item as Map<String, dynamic>))
+            .toList();
+      } catch (_) {
+        structuredFields = const [];
+      }
+    }
+
+    // Map understanding status
+    final statusStr = row['understanding_status'] as String?;
+    final understandingStatus = UnderstandingStatus.values.firstWhere(
+      (e) => e.name == statusStr,
+      orElse: () => UnderstandingStatus.unknown,
+    );
+
     return Memory(
       id: row['id'] as String,
       title: row['title'] as String,
@@ -272,6 +352,12 @@ class AppDatabase {
       isAttentionRequired: (row['is_attention_required'] as int?) == 1,
       subtitle: row['subtitle'] as String?,
       metadata: row['metadata'] as String?,
+      understandingStatus: understandingStatus,
+      understoodAt: row['understood_at'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(row['understood_at'] as int)
+          : null,
+      structuredFields: structuredFields,
+      titleOverride: row['title_override'] as String?,
     );
   }
 }

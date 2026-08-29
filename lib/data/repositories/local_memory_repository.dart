@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../app/theme/color_tokens.dart';
 import '../../core/services/storage_service.dart';
+import '../../core/services/understanding/understanding_field.dart';
+import '../../core/services/understanding/understanding_result.dart';
 import '../database/app_database.dart';
 import '../models/memory.dart';
 import '../models/vault_category.dart';
@@ -120,6 +122,58 @@ class LocalMemoryRepository implements MemoryRepository {
   Future<void> updateMemory(Memory memory) async {
     await _database.updateMemory(memory);
     await _mockRepository.updateMemory(memory);
+  }
+
+  @override
+  Future<void> updateUnderstanding(String memoryId, UnderstandingResult result) async {
+    final memory = await getMemoryById(memoryId);
+    if (memory == null) return;
+
+    // Check if title should be updated to understood document type
+    String? newTitle = memory.title;
+    if (result.documentType != null && result.documentType!.isNotEmpty) {
+      if (memory.title == 'Untitled memory') {
+        newTitle = result.documentType!;
+      }
+    }
+
+    final updated = memory.copyWith(
+      title: newTitle,
+      documentType: result.documentType ?? memory.documentType,
+      categoryKey: result.categoryKey ?? memory.categoryKey,
+      structuredFields: result.fields,
+      confidence: result.overallConfidence ?? memory.confidence,
+      understandingStatus: result.status,
+      understoodAt: result.understoodAt ??
+          (result.status == UnderstandingStatus.confirmed ? DateTime.now() : memory.understoodAt),
+      updatedAt: DateTime.now(),
+    );
+
+    await updateMemory(updated);
+  }
+
+  @override
+  Future<void> updateStructuredField(String memoryId, UnderstandingField field) async {
+    final memory = await getMemoryById(memoryId);
+    if (memory == null) return;
+
+    final updatedFields = List<UnderstandingField>.from(memory.structuredFields);
+    final index = updatedFields.indexWhere(
+      (f) => f.fieldName.toLowerCase() == field.fieldName.toLowerCase(),
+    );
+
+    if (index != -1) {
+      updatedFields[index] = field;
+    } else {
+      updatedFields.add(field);
+    }
+
+    final updated = memory.copyWith(
+      structuredFields: updatedFields,
+      updatedAt: DateTime.now(),
+    );
+
+    await updateMemory(updated);
   }
 
   @override

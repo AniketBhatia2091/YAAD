@@ -11,6 +11,7 @@ import '../features/memory_detail/memory_detail_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/search/search_screen.dart';
 import '../features/settings/settings_screen.dart';
+import '../features/understanding/understanding_screen.dart';
 import '../features/vault/vault_screen.dart';
 import 'providers.dart';
 
@@ -55,6 +56,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final imagePath = state.extra as String? ?? '';
           return PreviewScreen(imagePath: imagePath);
+        },
+      ),
+
+      // Understanding Screen (Review extracted information)
+      GoRoute(
+        path: '/understanding/:id',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final memoryId = state.pathParameters['id'] ?? '';
+          return UnderstandingScreen(memoryId: memoryId);
         },
       ),
 

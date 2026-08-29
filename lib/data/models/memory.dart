@@ -1,3 +1,6 @@
+import '../../core/services/understanding/understanding_field.dart';
+import '../../core/services/understanding/understanding_result.dart';
+
 /// Domain entity representing a personal memory in YAAD.
 class Memory {
   final String id;
@@ -19,6 +22,12 @@ class Memory {
   final String? subtitle;
   final String? metadata;
 
+  // v0.8 Understanding & Review Pipeline fields
+  final UnderstandingStatus understandingStatus;
+  final DateTime? understoodAt;
+  final List<UnderstandingField> structuredFields;
+  final String? titleOverride;
+
   const Memory({
     required this.id,
     required this.title,
@@ -38,7 +47,14 @@ class Memory {
     this.isAttentionRequired = false,
     this.subtitle,
     this.metadata,
+    this.understandingStatus = UnderstandingStatus.unknown,
+    this.understoodAt,
+    this.structuredFields = const [],
+    this.titleOverride,
   });
+
+  /// The active title shown to the user (prefers manual titleOverride if set).
+  String get displayTitle => titleOverride ?? title;
 
   /// Factory helper for creating an unclassified Memory from capture/import.
   factory Memory.createUnclassified({
@@ -65,6 +81,10 @@ class Memory {
       isAttentionRequired: false,
       subtitle: 'Unclassified memory',
       metadata: '{}',
+      understandingStatus: UnderstandingStatus.unknown,
+      understoodAt: null,
+      structuredFields: const [],
+      titleOverride: null,
     );
   }
 
@@ -87,6 +107,10 @@ class Memory {
     bool? isAttentionRequired,
     String? subtitle,
     String? metadata,
+    UnderstandingStatus? understandingStatus,
+    DateTime? understoodAt,
+    List<UnderstandingField>? structuredFields,
+    String? titleOverride,
   }) {
     return Memory(
       id: id ?? this.id,
@@ -107,6 +131,10 @@ class Memory {
       isAttentionRequired: isAttentionRequired ?? this.isAttentionRequired,
       subtitle: subtitle ?? this.subtitle,
       metadata: metadata ?? this.metadata,
+      understandingStatus: understandingStatus ?? this.understandingStatus,
+      understoodAt: understoodAt ?? this.understoodAt,
+      structuredFields: structuredFields ?? this.structuredFields,
+      titleOverride: titleOverride ?? this.titleOverride,
     );
   }
 }
