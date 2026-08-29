@@ -15,12 +15,12 @@ from common import (
     normalize_numeric,
     normalize_text,
 )
-from dataset_stats import generate_dataset_stats
+from dataset_stats import generate_dataset_stats, load_manifest_targets
 from stage1_preprocessing import analyze_image_quality
 from stage3_parsing import run_stage3_parsing
 from stage4_mapping import run_stage4_mapping
 from stage5_hallucination import run_stage5_hallucination_check
-from validate_dataset import validate_dataset
+from validate_dataset import validate_dataset, load_manifest
 from vision_providers import get_vision_provider
 
 
@@ -55,16 +55,26 @@ class TestOcrSpikeHarness(unittest.TestCase):
         self.assertTrue(match_date("5 Sep 2026", "05/09/2026"))
         self.assertFalse(match_date("2026-09-05", "2026-09-06"))
 
+    def test_load_dataset_manifest(self):
+        manifest_path = os.path.join(os.path.dirname(__file__), "..", "dataset_manifest.json")
+        manifest = load_manifest(manifest_path)
+        self.assertIn("allowed_enums", manifest)
+        self.assertIn("target_distribution", manifest)
+        targets = load_manifest_targets(manifest_path)
+        self.assertEqual(sum(targets.values()), 52)
+
     def test_validate_dataset_valid_fixture(self):
         valid_csv = os.path.join(os.path.dirname(__file__), "fixtures", "valid_gt.csv")
         img_dir = os.path.join(os.path.dirname(__file__), "..", "images")
-        errors = validate_dataset(valid_csv, img_dir)
+        manifest_path = os.path.join(os.path.dirname(__file__), "..", "dataset_manifest.json")
+        errors = validate_dataset(valid_csv, img_dir, manifest_path)
         self.assertEqual(len(errors), 0, f"Expected 0 errors on valid fixture, got: {errors}")
 
     def test_validate_dataset_invalid_fixture(self):
         invalid_csv = os.path.join(os.path.dirname(__file__), "fixtures", "invalid_meta_gt.csv")
         img_dir = os.path.join(os.path.dirname(__file__), "..", "images")
-        errors = validate_dataset(invalid_csv, img_dir)
+        manifest_path = os.path.join(os.path.dirname(__file__), "..", "dataset_manifest.json")
+        errors = validate_dataset(invalid_csv, img_dir, manifest_path)
         self.assertGreater(len(errors), 0, "Expected validation errors on invalid fixture")
         err_str = " ".join(errors)
         self.assertIn("Invalid doc_type", err_str)
@@ -98,16 +108,17 @@ class TestOcrSpikeHarness(unittest.TestCase):
     def test_dataset_stats_generation(self):
         valid_csv = os.path.join(os.path.dirname(__file__), "fixtures", "valid_gt.csv")
         out_dir = os.path.join(os.path.dirname(__file__), "..", "outputs")
-        generate_dataset_stats(valid_csv, out_dir)
+        manifest_path = os.path.join(os.path.dirname(__file__), "..", "dataset_manifest.json")
+        generate_dataset_stats(valid_csv, out_dir, manifest_path)
         self.assertTrue(os.path.exists(os.path.join(out_dir, "dataset_stats.csv")))
         self.assertTrue(os.path.exists(os.path.join(out_dir, "dataset_stats.md")))
 
-    def test_load_ground_truth(self):
+    def test_load_ground_truth_sample_id(self):
         gt_path = os.path.join(os.path.dirname(__file__), "..", "ground_truth_template.csv")
         if os.path.exists(gt_path):
             rows = load_ground_truth(gt_path)
             self.assertGreater(len(rows), 0)
-            self.assertEqual(rows[0].doc_type, "bill")
+            self.assertEqual(rows[0].sample_id, "BILL_001")
 
 
 if __name__ == "__main__":

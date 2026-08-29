@@ -1,0 +1,35 @@
+{
+  "benchmark_version": "0.5",
+  "schema_version": "1.1",
+  "target_distribution": {
+    "total_target": 52,
+    "categories": {
+      "bill": { "target": 12, "description": "Household electricity, water, broadband, mobile bills" },
+      "prescription_printed": { "target": 8, "description": "Printed clinic, hospital, and pharmacy prescription summaries" },
+      "prescription_handwritten": { "target": 8, "description": "Handwritten doctor prescriptions" },
+      "medicine_strip": { "target": 10, "description": "Foil medicine strips (curved/reflective)" },
+      "id": { "target": 8, "description": "Synthetic or public sample IDs (Aadhaar, PAN, DL, RC)" },
+      "warranty": { "target": 6, "description": "Electronics invoices, receipts, warranty cards" }
+    }
+  },
+  "allowed_enums": {
+    "doc_types": ["bill", "prescription", "medicine_strip", "id", "warranty"],
+    "doc_subtypes": [
+      "electricity", "water", "broadband", "mobile", "clinic", "hospital",
+      "manufacturer_strip", "aadhaar", "pan", "driving_license", "vehicle_rc", "receipt", "card", "general"
+    ],
+    "languages": ["english", "hindi", "punjabi", "hinglish", "mixed"],
+    "scripts": ["latin", "devanagari", "gurmukhi", "mixed"],
+    "image_qualities": ["good", "acceptable", "poor"],
+    "source_types": ["camera_photo", "gallery_import", "scanned_pdf", "synthetic_fixture"],
+    "field_visibility_statuses": ["all_visible", "partially_visible", "occluded", "cropped"],
+    "annotation_confidences": ["high", "medium", "low"]
+  },
+  "explicit_tokens": ["<NOT_PRESENT>", "<UNREADABLE>", "<NOT_APPLICABLE>"],
+  "privacy_policy": {
+    "local_dataset_only": true,
+    "never_commit_real_images": true,
+    "never_commit_api_keys": true,
+    "never_commit_env_files": true
+  }
+}

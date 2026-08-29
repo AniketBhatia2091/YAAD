@@ -1,4 +1,5 @@
 import csv
+import os
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -10,6 +11,7 @@ EXPLICIT_NON_VALUE_TOKENS = {"<NOT_PRESENT>", "<UNREADABLE>", "<NOT_APPLICABLE>"
 
 @dataclass
 class GroundTruthRow:
+    sample_id: str
     filename: str
     doc_type: str
     doc_subtype: str
@@ -96,12 +98,12 @@ def normalize_date(date_str: Optional[str]) -> Optional[str]:
             return dt.strftime("%Y-%m-%d")
         except ValueError:
             continue
-            
+
     match = re.search(r"(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})", clean_str)
     if match:
         y, m, d = match.groups()
         return f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
-        
+
     return None
 
 
@@ -167,11 +169,14 @@ def match_text(expected: Optional[str], actual: Optional[str]) -> bool:
 def load_ground_truth(csv_path: str) -> List[GroundTruthRow]:
     """Reads ground truth CSV file into GroundTruthRow instances."""
     rows = []
+    if not os.path.exists(csv_path):
+        return rows
     with open(csv_path, mode="r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for r in reader:
             rows.append(
                 GroundTruthRow(
+                    sample_id=(r.get("sample_id") or "").strip(),
                     filename=(r.get("filename") or "").strip(),
                     doc_type=(r.get("doc_type") or "").strip().lower(),
                     doc_subtype=(r.get("doc_subtype") or "general").strip().lower(),
