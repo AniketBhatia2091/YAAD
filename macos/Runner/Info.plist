@@ -28,5 +28,7 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSCameraUsageDescription</key>
+	<string>YAAD uses your camera to capture and remember documents, bills, and receipts.</string>
 </dict>
 </plist>

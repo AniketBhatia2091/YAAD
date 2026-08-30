@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path/path.dart' as p;
 
 import '../../app/providers.dart';
 import '../../app/theme/color_tokens.dart';
@@ -57,6 +58,22 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
         sourceImageFile: sourceFile,
       );
 
+      // Clean temporary camera capture file from system temp/cache directory.
+      // SAFETY: On macOS, image_picker returns the user's ORIGINAL file path
+      // when importing from gallery (not a cache copy). We must ONLY delete
+      // files that reside inside the system temp directory (where the camera
+      // plugin writes captures). Never delete user-owned gallery files.
+      try {
+        final tempDir = Directory.systemTemp.path;
+        if (sourceFile.path != persistentPath &&
+            await sourceFile.exists() &&
+            p.isWithin(tempDir, sourceFile.path)) {
+          await sourceFile.delete();
+        }
+      } catch (_) {
+        // Best-effort cleanup; do not block user navigation if OS file-lock delays deletion
+      }
+
       // Create unclassified Memory
       final newMemory = Memory.createUnclassified(
         id: memoryId,
@@ -86,6 +103,32 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
         setState(() {
           _isSaving = false;
         });
+      }
+    }
+  }
+
+  Future<void> _onRetakePressed() async {
+    if (_isSaving) return;
+
+    // Clean up temporary camera cache file only if it's in the system temp dir.
+    // SAFETY: Never delete user-owned gallery files (macOS image_picker returns
+    // the original path, not a copy).
+    try {
+      final sourceFile = File(widget.imagePath);
+      final tempDir = Directory.systemTemp.path;
+      if (await sourceFile.exists() &&
+          p.isWithin(tempDir, sourceFile.path)) {
+        await sourceFile.delete();
+      }
+    } catch (_) {
+      // Best-effort cleanup
+    }
+
+    if (mounted) {
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/capture');
       }
     }
   }
@@ -163,15 +206,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                   // Retake Button
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: _isSaving
-                          ? null
-                          : () {
-                              if (context.canPop()) {
-                                context.pop();
-                              } else {
-                                context.go('/capture');
-                              }
-                            },
+                      onPressed: _isSaving ? null : _onRetakePressed,
                       icon: const Icon(Icons.refresh_rounded, color: Colors.white),
                       label: const Text('Retake', style: TextStyle(color: Colors.white)),
                       style: OutlinedButton.styleFrom(

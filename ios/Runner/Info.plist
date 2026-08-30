@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>YAAD uses your camera to capture and remember documents, bills, and receipts.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>YAAD allows you to import documents and receipts from your photo library.</string>
 </dict>
 </plist>
