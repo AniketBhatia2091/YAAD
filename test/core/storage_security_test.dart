@@ -150,9 +150,7 @@ void main() {
       // Simulate a file the user picked from their own directory (macOS gallery import).
       // IMPORTANT: tempAppDir is inside Directory.systemTemp, so we create a separate
       // directory outside of it to simulate a user's ~/Pictures path.
-      // We use the app's own memories dir parent as a stand-in for a non-temp location.
-      final userDir = Directory(p.join(tempAppDir.path, 'memories', 'uuid-gallery-test'));
-      // Don't use this path — instead create a sibling to memories to simulate user Photos
+      // Create a sibling to memories to simulate user Photos
       final simulatedUserPhotosDir = Directory(p.join(tempAppDir.path, 'SimulatedUserPhotos'));
       await simulatedUserPhotosDir.create(recursive: true);
       final userPhoto = File(p.join(simulatedUserPhotosDir.path, 'vacation.jpg'));
