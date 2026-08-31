@@ -12,6 +12,10 @@ class CameraService extends ChangeNotifier {
   bool _isCapturing = false;
   String? _errorMessage;
 
+  /// Set to true only after [dispose] is called (i.e., Riverpod tears down the
+  /// provider). Guards against notifyListeners() being called on a dead notifier.
+  bool _isDisposed = false;
+
   List<cam.CameraDescription> get cameras => _availableCameras;
   cam.CameraController? get controller => _controller;
   bool get isInitialized => _controller != null && _controller!.value.isInitialized;
@@ -22,18 +26,23 @@ class CameraService extends ChangeNotifier {
   bool get hasMultipleCameras => _availableCameras.length > 1;
 
   /// Initializes available cameras on device and selects rear camera by default.
+  ///
+  /// Safe to call after [releaseController] — re-opens the camera hardware and
+  /// creates a fresh [CameraController] without affecting the ChangeNotifier
+  /// lifecycle. Silently no-ops if [dispose] has already been called.
   Future<void> initialize() async {
+    if (_isDisposed) return;
     if (_isInitializing) return;
     _isInitializing = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       _availableCameras = await cam.availableCameras();
       if (_availableCameras.isEmpty) {
         _errorMessage = 'Camera isn\'t available on this device.';
         _isInitializing = false;
-        notifyListeners();
+        _safeNotify();
         return;
       }
 
@@ -50,7 +59,7 @@ class CameraService extends ChangeNotifier {
       _errorMessage = 'Camera initialization failed: ${e.toString()}';
     } finally {
       _isInitializing = false;
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -78,6 +87,23 @@ class CameraService extends ChangeNotifier {
     }
   }
 
+  /// Releases the underlying camera controller and hardware WITHOUT affecting
+  /// the ChangeNotifier lifecycle.
+  ///
+  /// Call this when the camera screen is paused or the app is backgrounded.
+  /// After this returns, [initialize] can safely re-open the camera without
+  /// any "used after being disposed" errors.
+  Future<void> releaseController() async {
+    if (_isDisposed) return;
+    if (_controller != null) {
+      await _controller!.dispose();
+      _controller = null;
+    }
+    _isInitializing = false;
+    _isCapturing = false;
+    _safeNotify();
+  }
+
   /// Cycles through Flash Modes: off -> auto -> always/on -> off
   Future<void> toggleFlashMode() async {
     if (!isInitialized) return;
@@ -99,7 +125,7 @@ class CameraService extends ChangeNotifier {
     try {
       await _controller!.setFlashMode(nextMode);
       _currentFlashMode = nextMode;
-      notifyListeners();
+      _safeNotify();
     } catch (e) {
       debugPrint('Failed to set flash mode: $e');
     }
@@ -111,7 +137,7 @@ class CameraService extends ChangeNotifier {
 
     _selectedCameraIndex = (_selectedCameraIndex + 1) % _availableCameras.length;
     _isInitializing = true;
-    notifyListeners();
+    _safeNotify();
 
     try {
       await _initController(_availableCameras[_selectedCameraIndex]);
@@ -119,7 +145,7 @@ class CameraService extends ChangeNotifier {
       _errorMessage = 'Failed to switch camera.';
     } finally {
       _isInitializing = false;
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -128,7 +154,7 @@ class CameraService extends ChangeNotifier {
     if (!isInitialized || _isCapturing) return null;
 
     _isCapturing = true;
-    notifyListeners();
+    _safeNotify();
 
     try {
       final xFile = await _controller!.takePicture();
@@ -141,7 +167,7 @@ class CameraService extends ChangeNotifier {
       return null;
     } finally {
       _isCapturing = false;
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -156,8 +182,19 @@ class CameraService extends ChangeNotifier {
     }
   }
 
+  /// Calls [notifyListeners] only when the notifier has not been finally disposed.
+  void _safeNotify() {
+    if (!_isDisposed) notifyListeners();
+  }
+
+  /// Final teardown called by Riverpod when the provider scope is destroyed.
+  ///
+  /// Releases camera hardware, marks the notifier as permanently disposed, then
+  /// calls [super.dispose]. Do NOT call this for app-lifecycle pausing — use
+  /// [releaseController] instead.
   @override
   void dispose() {
+    _isDisposed = true;
     _controller?.dispose();
     _controller = null;
     super.dispose();

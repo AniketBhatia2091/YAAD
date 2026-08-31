@@ -43,7 +43,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final cameraService = ref.read(cameraServiceProvider.notifier);
     if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
-      cameraService.dispose();
+      // Release camera hardware only — do NOT call dispose() here, as that
+      // permanently destroys the ChangeNotifier and causes the
+      // "CameraService was used after being disposed" crash on resume.
+      cameraService.releaseController();
     } else if (state == AppLifecycleState.resumed) {
       cameraService.initialize();
     }

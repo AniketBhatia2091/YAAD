@@ -305,18 +305,26 @@ class HomeScreen extends ConsumerWidget {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.circle, size: 8, color: YaadColors.accent),
-                          const SizedBox(width: 12),
-                          Text(
-                            item.title,
-                            style: YaadTypography.titleSmall,
-                          ),
-                        ],
+                      // Left: dot + title — expands to fill available space
+                      Expanded(
+                        child: Row(
+                          children: [
+                            const Icon(Icons.circle, size: 8, color: YaadColors.accent),
+                            const SizedBox(width: 12),
+                            Flexible(
+                              child: Text(
+                                item.title,
+                                style: YaadTypography.titleSmall,
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 8),
+                      // Right: subtitle — fixed, never expands
                       Text(
                         item.subtitle ?? '',
                         style: YaadTypography.labelMedium.copyWith(
@@ -334,6 +342,7 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
+
 
   Widget _buildRecentlyRememberedHorizontal(BuildContext context, List<Memory> items) {
     return SizedBox(
