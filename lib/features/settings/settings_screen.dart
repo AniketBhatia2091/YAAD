@@ -14,8 +14,11 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? YaadColors.surfaceDark : YaadColors.surfaceLight;
+    final borderColor = isDark ? YaadColors.borderDark : YaadColors.borderLight;
+
     return Scaffold(
-      backgroundColor: YaadColors.backgroundLight,
       appBar: AppBar(
         title: const Text('Settings'),
         leading: IconButton(
@@ -31,9 +34,9 @@ class SettingsScreen extends ConsumerWidget {
             Container(
               padding: YaadSpacing.cardPadding,
               decoration: BoxDecoration(
-                color: YaadColors.surfaceLight,
+                color: cardBg,
                 borderRadius: YaadRadius.borderLg,
-                border: Border.all(color: YaadColors.borderLight),
+                border: Border.all(color: borderColor),
               ),
               child: Row(
                 children: [
@@ -41,7 +44,7 @@ class SettingsScreen extends ConsumerWidget {
                     width: 56,
                     height: 56,
                     decoration: const BoxDecoration(
-                      color: YaadColors.primary,
+                      color: YaadColors.goldPrimary,
                       shape: BoxShape.circle,
                     ),
                     child: const Center(
@@ -60,16 +63,14 @@ class SettingsScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Aniket Bhatia',
-                          style: YaadTypography.titleMedium,
+                          style: YaadTypography.titleMediumOf(context),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           'Personal Memory Vault',
-                          style: YaadTypography.bodyMedium.copyWith(
-                            color: YaadColors.textSecondaryLight,
-                          ),
+                          style: YaadTypography.bodyMediumOf(context),
                         ),
                       ],
                     ),
@@ -83,26 +84,52 @@ class SettingsScreen extends ConsumerWidget {
             _buildSettingsSection(
               context,
               'PREFERENCES & SECURITY',
-              const [
+              [
+                _SettingsTile(
+                  icon: Icons.dark_mode_outlined,
+                  title: 'Appearance',
+                  subtitle: _getThemeModeLabel(ref.watch(themeModeProvider)),
+                  onTap: () => _showThemeModeDialog(context, ref),
+                ),
                 _SettingsTile(
                   icon: Icons.person_outline_rounded,
                   title: 'Profile',
                   subtitle: 'Manage profile and personal details',
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Profile section shell ready')),
+                    );
+                  },
                 ),
                 _SettingsTile(
                   icon: Icons.shield_outlined,
                   title: 'Privacy & Security',
-                  subtitle: 'On-device encryption & credentials',
+                  subtitle: 'On-device sandbox isolation & local storage',
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('All document memories remain strictly on your local device.')),
+                    );
+                  },
                 ),
                 _SettingsTile(
                   icon: Icons.notifications_none_rounded,
                   title: 'Notifications',
                   subtitle: 'Bill reminders and expiry alerts',
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Notifications section ready')),
+                    );
+                  },
                 ),
                 _SettingsTile(
                   icon: Icons.language_rounded,
                   title: 'Language',
                   subtitle: 'English (India)',
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Language selection ready')),
+                    );
+                  },
                 ),
               ],
             ),
@@ -111,21 +138,36 @@ class SettingsScreen extends ConsumerWidget {
             _buildSettingsSection(
               context,
               'VAULT & SYNC',
-              const [
+              [
                 _SettingsTile(
                   icon: Icons.people_outline_rounded,
                   title: 'Family Vault',
-                  subtitle: 'Securely share memories with family',
+                  subtitle: 'Share memories with family locally',
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Family Vault section ready')),
+                    );
+                  },
                 ),
                 _SettingsTile(
-                  icon: Icons.cloud_outlined,
+                  icon: Icons.save_alt_rounded,
                   title: 'Backup & Export',
-                  subtitle: 'Encrypted local and cloud backups',
+                  subtitle: 'Local device export & backup',
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Backup and export options ready')),
+                    );
+                  },
                 ),
                 _SettingsTile(
                   icon: Icons.star_outline_rounded,
                   title: 'Subscription',
                   subtitle: 'YAAD Free Plan',
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('YAAD Free Plan is active')),
+                    );
+                  },
                 ),
               ],
             ),
@@ -134,11 +176,16 @@ class SettingsScreen extends ConsumerWidget {
             _buildSettingsSection(
               context,
               'ABOUT',
-              const [
+              [
                 _SettingsTile(
                   icon: Icons.info_outline_rounded,
                   title: 'About YAAD',
-                  subtitle: '${AppConstants.appName} v0.1.0 — ${AppConstants.tagline}',
+                  subtitle: '${AppConstants.appName} v1.0.0 — ${AppConstants.tagline}',
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('${AppConstants.appName} v1.0.0')),
+                    );
+                  },
                 ),
               ],
             ),
@@ -184,43 +231,115 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
         ),
-        Container(
-          decoration: BoxDecoration(
-            color: YaadColors.surfaceLight,
-            borderRadius: YaadRadius.borderLg,
-            border: Border.all(color: YaadColors.borderLight),
-          ),
-          child: Column(
-            children: tiles.asMap().entries.map((entry) {
-              final idx = entry.key;
-              final tile = entry.value;
-              final isLast = idx == tiles.length - 1;
-              return Column(
-                children: [
-                  ListTile(
-                    leading: Icon(tile.icon, color: YaadColors.primary),
-                    title: Text(tile.title, style: YaadTypography.titleSmall),
-                    subtitle: Text(
-                      tile.subtitle,
-                      style: YaadTypography.bodyMedium.copyWith(
-                        fontSize: 13,
-                        color: YaadColors.textSecondaryLight,
+        Builder(
+          builder: (context) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            final cardBg = isDark ? YaadColors.surfaceDark : YaadColors.surfaceLight;
+            final borderColor = isDark ? YaadColors.borderDark : YaadColors.borderLight;
+            final iconColor = isDark ? YaadColors.goldAccent : YaadColors.primary;
+            final dividerColor = isDark ? YaadColors.borderDark : YaadColors.borderLight;
+
+            return Container(
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: YaadRadius.borderLg,
+                border: Border.all(color: borderColor),
+              ),
+              child: Column(
+                children: tiles.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final tile = entry.value;
+                  final isLast = idx == tiles.length - 1;
+                  return Column(
+                    children: [
+                      ListTile(
+                        leading: Icon(tile.icon, color: iconColor),
+                        title: Text(tile.title, style: YaadTypography.titleSmallOf(context)),
+                        subtitle: Text(
+                          tile.subtitle,
+                          style: YaadTypography.bodyMediumOf(context).copyWith(fontSize: 13),
+                        ),
+                        trailing: const Icon(Icons.chevron_right_rounded, color: YaadColors.textMutedLight),
+                        onTap: tile.onTap,
                       ),
-                    ),
-                    trailing: const Icon(Icons.chevron_right_rounded, color: YaadColors.textMutedLight),
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('${tile.title} section shell ready')),
-                      );
-                    },
-                  ),
-                  if (!isLast) const Divider(height: 1, color: YaadColors.borderLight),
-                ],
-              );
-            }).toList(),
-          ),
+                      if (!isLast) Divider(height: 1, color: dividerColor),
+                    ],
+                  );
+                }).toList(),
+              ),
+            );
+          },
         ),
       ],
+    );
+  }
+
+  String _getThemeModeLabel(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.dark:
+        return 'Dark (Default)';
+      case ThemeMode.light:
+        return 'Light';
+      case ThemeMode.system:
+        return 'System';
+    }
+  }
+
+  void _showThemeModeDialog(BuildContext context, WidgetRef ref) {
+    final current = ref.read(themeModeProvider);
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Choose Theme',
+                  style: YaadTypography.titleLargeOf(context),
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  leading: const Icon(Icons.dark_mode_rounded, color: YaadColors.goldAccent),
+                  title: const Text('Dark (Recommended)'),
+                  subtitle: const Text('Premium obsidian & gold experience'),
+                  trailing: current == ThemeMode.dark ? const Icon(Icons.check_rounded, color: YaadColors.goldAccent) : null,
+                  onTap: () {
+                    ref.read(themeModeProvider.notifier).setThemeMode(ThemeMode.dark);
+                    Navigator.pop(ctx);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.light_mode_rounded, color: YaadColors.goldAccent),
+                  title: const Text('Light'),
+                  subtitle: const Text('Calm clean sand palette'),
+                  trailing: current == ThemeMode.light ? const Icon(Icons.check_rounded, color: YaadColors.goldAccent) : null,
+                  onTap: () {
+                    ref.read(themeModeProvider.notifier).setThemeMode(ThemeMode.light);
+                    Navigator.pop(ctx);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.settings_system_daydream_rounded, color: YaadColors.goldAccent),
+                  title: const Text('System'),
+                  subtitle: const Text('Match device appearance setting'),
+                  trailing: current == ThemeMode.system ? const Icon(Icons.check_rounded, color: YaadColors.goldAccent) : null,
+                  onTap: () {
+                    ref.read(themeModeProvider.notifier).setThemeMode(ThemeMode.system);
+                    Navigator.pop(ctx);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -229,10 +348,12 @@ class _SettingsTile {
   final IconData icon;
   final String title;
   final String subtitle;
+  final VoidCallback? onTap;
 
   const _SettingsTile({
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.onTap,
   });
 }

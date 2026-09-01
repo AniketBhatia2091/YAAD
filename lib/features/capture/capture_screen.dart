@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -22,6 +23,7 @@ class CaptureScreen extends ConsumerStatefulWidget {
 
 class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindingObserver {
   final ImagePicker _imagePicker = ImagePicker();
+  bool _isShutterAnimating = false;
 
   @override
   void initState() {
@@ -56,7 +58,20 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
     final cameraService = ref.read(cameraServiceProvider.notifier);
     if (!cameraService.isInitialized || cameraService.isCapturing) return;
 
+    // Haptic confirmation
+    HapticFeedback.mediumImpact();
+
+    // Shutter flash animation
+    if (mounted) {
+      setState(() => _isShutterAnimating = true);
+    }
+
     final xFile = await cameraService.capturePhoto();
+
+    if (mounted) {
+      setState(() => _isShutterAnimating = false);
+    }
+
     if (xFile != null && mounted) {
       context.push('/preview', extra: xFile.path);
     }
@@ -80,14 +95,14 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
           context.push('/preview', extra: pickedFile.path);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('We couldn\'t open that image.')),
+            const SnackBar(content: Text('We couldn\'t find that image on disk. Please select another.')),
           );
         }
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('We couldn\'t open that image: ${e.toString()}')),
+          const SnackBar(content: Text('We couldn\'t open that photo. Please try again.')),
         );
       }
     }
@@ -119,6 +134,14 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
               child: _buildCameraBody(cameraService),
             ),
 
+            // Shutter Flash Overlay Animation
+            if (_isShutterAnimating)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.white.withValues(alpha: 0.4),
+                ),
+              ),
+
             // Top Control Bar (Close, Flash, Status)
             Positioned(
               top: 16,
@@ -129,6 +152,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
                 children: [
                   Semantics(
                     label: 'Close capture',
+                    button: true,
                     child: IconButton(
                       onPressed: () {
                         if (context.canPop()) {
@@ -144,24 +168,25 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
                     ),
                   ),
 
-                  // Status Chip ("Ready to remember")
+                  // Honest Status Chip ("Document Scanner")
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.black87,
                       borderRadius: YaadRadius.borderPill,
-                      border: Border.all(color: YaadColors.accent, width: 1),
+                      border: Border.all(color: YaadColors.goldAccent, width: 1),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.circle, size: 8, color: YaadColors.accent),
-                        const SizedBox(width: 6),
+                        Icon(Icons.circle, size: 8, color: YaadColors.goldAccent),
+                        SizedBox(width: 6),
                         Text(
                           'Ready to remember',
-                          style: YaadTypography.labelMedium.copyWith(
+                          style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
+                            fontSize: 13,
                           ),
                         ),
                       ],
@@ -169,19 +194,23 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
                   ),
 
                   // Flash Control Toggle
-                  IconButton(
-                    onPressed: cameraService.isInitialized
-                        ? () => cameraService.toggleFlashMode()
-                        : null,
-                    icon: Icon(
-                      _getFlashIcon(cameraService.currentFlashMode),
-                      color: cameraService.currentFlashMode != FlashMode.off
-                          ? YaadColors.accent
-                          : Colors.white,
-                      size: 24,
-                    ),
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.black54,
+                  Semantics(
+                    label: 'Toggle Flash',
+                    button: true,
+                    child: IconButton(
+                      onPressed: cameraService.isInitialized
+                          ? () => cameraService.toggleFlashMode()
+                          : null,
+                      icon: Icon(
+                        _getFlashIcon(cameraService.currentFlashMode),
+                        color: cameraService.currentFlashMode != FlashMode.off
+                            ? YaadColors.goldAccent
+                            : Colors.white,
+                        size: 24,
+                      ),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.black54,
+                      ),
                     ),
                   ),
                 ],
@@ -199,6 +228,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
                   // Gallery / Import Button
                   Semantics(
                     label: 'Import from Gallery',
+                    button: true,
                     child: IconButton(
                       onPressed: _onGalleryImportTapped,
                       icon: const Icon(Icons.photo_library_outlined, color: Colors.white, size: 28),
@@ -209,9 +239,9 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
                     ),
                   ),
 
-                  // Prominent Large YAAD Shutter Button
+                  // Prominent Large YAAD Gold Shutter Button
                   Semantics(
-                    label: 'Capture Photo',
+                    label: 'Capture Document Photo',
                     button: true,
                     child: GestureDetector(
                       onTap: _onShutterTapped,
@@ -221,14 +251,14 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: Colors.transparent,
-                          border: Border.all(color: Colors.white, width: 4),
+                          border: Border.all(color: Colors.white70, width: 4),
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(4.0),
                           child: Container(
                             decoration: const BoxDecoration(
                               shape: BoxShape.circle,
-                              color: YaadColors.accent,
+                              color: YaadColors.goldPrimary,
                               boxShadow: YaadShadows.captureButton,
                             ),
                             child: cameraService.isCapturing
@@ -252,6 +282,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
                   // Camera Switch Button (Front <-> Rear)
                   Semantics(
                     label: 'Switch Camera',
+                    button: true,
                     child: IconButton(
                       onPressed: cameraService.hasMultipleCameras
                           ? () => cameraService.switchCamera()
@@ -282,7 +313,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(color: YaadColors.accent),
+            CircularProgressIndicator(color: YaadColors.goldAccent),
             SizedBox(height: 16),
             Text(
               'Initializing camera...',
@@ -313,7 +344,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
                 icon: const Icon(Icons.refresh_rounded),
                 label: const Text('Try again'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: YaadColors.primary,
+                  backgroundColor: YaadColors.goldPrimary,
                   foregroundColor: Colors.white,
                 ),
               ),
@@ -323,7 +354,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
       );
     }
 
-    // Active Camera Preview + Unobtrusive Document Framing Guide
+    // Active Camera Preview + Unobtrusive Document Framing Reticle
     return Stack(
       children: [
         Positioned.fill(
@@ -333,29 +364,33 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
           child: Container(
             margin: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.white38, width: 1.5),
+              border: Border.all(color: Colors.white24, width: 1.2),
               borderRadius: YaadRadius.borderLg,
             ),
             child: Stack(
               children: [
-                Positioned(top: 16, left: 16, child: _buildReticleCorner(0)),
-                Positioned(top: 16, right: 16, child: _buildReticleCorner(1)),
-                Positioned(bottom: 16, left: 16, child: _buildReticleCorner(2)),
-                Positioned(bottom: 16, right: 16, child: _buildReticleCorner(3)),
+                Positioned(top: 14, left: 14, child: _buildReticleCorner(0)),
+                Positioned(top: 14, right: 14, child: _buildReticleCorner(1)),
+                Positioned(bottom: 14, left: 14, child: _buildReticleCorner(2)),
+                Positioned(bottom: 14, right: 14, child: _buildReticleCorner(3)),
                 Positioned(
-                  bottom: 24,
+                  bottom: 20,
                   left: 0,
                   right: 0,
                   child: Center(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                       decoration: const BoxDecoration(
-                        color: Colors.black54,
+                        color: Colors.black87,
                         borderRadius: YaadRadius.borderPill,
                       ),
-                      child: Text(
-                        'Fit the important part inside the frame',
-                        style: YaadTypography.labelSmall.copyWith(color: Colors.white70),
+                      child: const Text(
+                        'Align document edges inside frame',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ),
@@ -370,21 +405,21 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
 
   Widget _buildReticleCorner(int quadrant) {
     return Container(
-      width: 24,
-      height: 24,
+      width: 28,
+      height: 28,
       decoration: BoxDecoration(
         border: Border(
           top: (quadrant == 0 || quadrant == 1)
-              ? const BorderSide(color: YaadColors.accent, width: 3)
+              ? const BorderSide(color: YaadColors.goldAccent, width: 3.5)
               : BorderSide.none,
           bottom: (quadrant == 2 || quadrant == 3)
-              ? const BorderSide(color: YaadColors.accent, width: 3)
+              ? const BorderSide(color: YaadColors.goldAccent, width: 3.5)
               : BorderSide.none,
           left: (quadrant == 0 || quadrant == 2)
-              ? const BorderSide(color: YaadColors.accent, width: 3)
+              ? const BorderSide(color: YaadColors.goldAccent, width: 3.5)
               : BorderSide.none,
           right: (quadrant == 1 || quadrant == 3)
-              ? const BorderSide(color: YaadColors.accent, width: 3)
+              ? const BorderSide(color: YaadColors.goldAccent, width: 3.5)
               : BorderSide.none,
         ),
       ),

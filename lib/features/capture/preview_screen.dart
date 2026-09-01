@@ -95,10 +95,10 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
         // Navigate to UnderstandingScreen
         context.go('/understanding/$memoryId');
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('YAAD couldn\'t save this memory: ${e.toString()}')),
+          const SnackBar(content: Text('YAAD couldn\'t save this memory right now. Please try again.')),
         );
         setState(() {
           _isSaving = false;
@@ -205,14 +205,18 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                 children: [
                   // Retake Button
                   Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _isSaving ? null : _onRetakePressed,
-                      icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-                      label: const Text('Retake', style: TextStyle(color: Colors.white)),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.white38, width: 1.5),
-                        padding: const EdgeInsets.symmetric(vertical: YaadSpacing.md),
-                        minimumSize: const Size(0, YaadSpacing.minTouchTarget),
+                    child: Semantics(
+                      label: 'Retake photo',
+                      button: true,
+                      child: OutlinedButton.icon(
+                        onPressed: _isSaving ? null : _onRetakePressed,
+                        icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                        label: const Text('Retake', style: TextStyle(color: Colors.white)),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.white38, width: 1.5),
+                          padding: const EdgeInsets.symmetric(vertical: YaadSpacing.md),
+                          minimumSize: const Size(0, YaadSpacing.minTouchTarget),
+                        ),
                       ),
                     ),
                   ),
@@ -220,28 +224,32 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
 
                   // Remember Button
                   Expanded(
-                    child: Container(
-                      decoration: const BoxDecoration(
-                        boxShadow: YaadShadows.captureButton,
-                        borderRadius: YaadRadius.borderMd,
-                      ),
-                      child: ElevatedButton.icon(
-                        onPressed: _isSaving ? null : _onRememberPressed,
-                        icon: _isSaving
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Icon(Icons.bookmark_add_rounded, color: Colors.white),
-                        label: Text(
-                          _isSaving ? 'Saving...' : 'Remember',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    child: Semantics(
+                      label: 'Remember and analyze document',
+                      button: true,
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          boxShadow: YaadShadows.captureButton,
+                          borderRadius: YaadRadius.borderMd,
                         ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: YaadColors.accent,
-                          padding: const EdgeInsets.symmetric(vertical: YaadSpacing.md),
-                          minimumSize: const Size(0, YaadSpacing.minTouchTarget),
+                        child: ElevatedButton.icon(
+                          onPressed: _isSaving ? null : _onRememberPressed,
+                          icon: _isSaving
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.bookmark_add_rounded, color: Colors.white),
+                          label: Text(
+                            _isSaving ? 'Saving...' : 'Remember',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: YaadColors.goldPrimary,
+                            padding: const EdgeInsets.symmetric(vertical: YaadSpacing.md),
+                            minimumSize: const Size(0, YaadSpacing.minTouchTarget),
+                          ),
                         ),
                       ),
                     ),

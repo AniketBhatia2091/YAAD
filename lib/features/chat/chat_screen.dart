@@ -71,12 +71,9 @@ class _ChatScreenState extends State<ChatScreen> {
       _inputController.clear();
     });
 
-    // Provide mock context-aware retrieval response
     _generateMockResponse(text);
   }
 
-  /// Mock Response Provider Engine
-  /// Code structured so this can be swapped with real RAG / On-device AI Retrieval engine.
   void _generateMockResponse(String query) {
     final q = query.toLowerCase();
     String responseText = '';
@@ -98,35 +95,37 @@ class _ChatScreenState extends State<ChatScreen> {
           'Your latest BSES Electricity Bill is ₹1,847, due in 2 days on September 5, 2026.';
       title = 'BSES Electricity Bill';
       detail = 'Account: 102938475 · ₹1,847 due Sep 5';
+    } else if (q.contains('aadhaar') || q.contains('pan') || q.contains('id')) {
+      responseText =
+          'Here is your Aadhaar Card. Unique ID ends in 8921 under Self.';
+      title = 'Aadhaar Card';
+      detail = 'Aadhaar: XXXX XXXX 8921';
     } else {
       responseText =
-          'I checked your remembered items. I found memories matching "$query" in your Vault.';
-      title = 'Matching Memory';
-      detail = 'Stored safely in private local storage';
+          'I searched your local memories for "$query". You can see all matching items in the Search tab.';
     }
 
-    Future.delayed(const Duration(milliseconds: 400), () {
-      if (mounted) {
-        setState(() {
-          _messages.add(
-            ChatMessage(
-              id: DateTime.now().millisecondsSinceEpoch.toString(),
-              text: responseText,
-              isUser: false,
-              timestamp: DateTime.now(),
-              relatedMemoryTitle: title,
-              relatedMemoryDetail: detail,
-            ),
-          );
-        });
-      }
+    Future.delayed(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      setState(() {
+        _messages.add(ChatMessage(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          text: responseText,
+          isUser: false,
+          timestamp: DateTime.now(),
+          relatedMemoryTitle: title,
+          relatedMemoryDetail: detail,
+        ));
+      });
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? YaadColors.borderDark : YaadColors.borderLight;
+
     return Scaffold(
-      backgroundColor: YaadColors.backgroundLight,
       body: SafeArea(
         child: Column(
           children: [
@@ -137,25 +136,29 @@ class _ChatScreenState extends State<ChatScreen> {
                 children: [
                   Container(
                     padding: const EdgeInsets.all(10),
-                    decoration: const BoxDecoration(
-                      color: YaadColors.primary,
+                    decoration: BoxDecoration(
+                      color: isDark ? YaadColors.goldSurface : YaadColors.primary,
                       borderRadius: YaadRadius.borderLg,
                     ),
-                    child: const Icon(Icons.forum_outlined, color: Colors.white, size: 24),
+                    child: Icon(
+                      Icons.forum_outlined,
+                      color: isDark ? YaadColors.goldAccent : Colors.white,
+                      size: 24,
+                    ),
                   ),
                   const SizedBox(width: 12),
-                  const Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Ask YAAD',
-                        style: YaadTypography.titleLarge,
+                        style: YaadTypography.titleLargeOf(context),
                       ),
                       Text(
                         'Your memories, in conversation.',
                         style: TextStyle(
                           fontSize: 13,
-                          color: YaadColors.textSecondaryLight,
+                          color: isDark ? YaadColors.textSecondaryDark : YaadColors.textSecondaryLight,
                         ),
                       ),
                     ],
@@ -163,7 +166,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
             ),
-            const Divider(height: 1, color: YaadColors.borderLight),
+            Divider(height: 1, color: borderColor),
 
             // Messages Stream
             Expanded(
@@ -172,7 +175,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 itemCount: _messages.length,
                 itemBuilder: (context, index) {
                   final msg = _messages[index];
-                  return _buildMessageBubble(msg);
+                  return _buildMessageBubble(msg, isDark);
                 },
               ),
             ),
@@ -188,13 +191,15 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: ActionChip(
                       label: Text(query),
                       onPressed: () => _sendQuery(query),
-                      backgroundColor: YaadColors.surfaceSubtleLight,
-                      labelStyle: YaadTypography.labelSmall.copyWith(
-                        color: YaadColors.primary,
+                      backgroundColor: isDark ? YaadColors.surfaceDark : YaadColors.surfaceSubtleLight,
+                      labelStyle: TextStyle(
+                        color: isDark ? YaadColors.creamMuted : YaadColors.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
-                      shape: const RoundedRectangleBorder(
+                      shape: RoundedRectangleBorder(
                         borderRadius: YaadRadius.borderPill,
-                        side: BorderSide(color: YaadColors.borderLight),
+                        side: BorderSide(color: borderColor),
                       ),
                     ),
                   );
@@ -218,13 +223,17 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  IconButton.filled(
-                    onPressed: () => _sendQuery(_inputController.text),
-                    icon: const Icon(Icons.send_rounded),
-                    style: IconButton.styleFrom(
-                      backgroundColor: YaadColors.primary,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(48, 48),
+                  Semantics(
+                    label: 'Send message',
+                    button: true,
+                    child: IconButton.filled(
+                      onPressed: () => _sendQuery(_inputController.text),
+                      icon: const Icon(Icons.send_rounded),
+                      style: IconButton.styleFrom(
+                        backgroundColor: YaadColors.goldPrimary,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(48, 48),
+                      ),
                     ),
                   ),
                 ],
@@ -236,8 +245,13 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage msg) {
+  Widget _buildMessageBubble(ChatMessage msg, bool isDark) {
     final isUser = msg.isUser;
+    final cardBg = isUser
+        ? (isDark ? YaadColors.goldPrimary : YaadColors.primary)
+        : (isDark ? YaadColors.surfaceDark : YaadColors.surfaceLight);
+    final borderColor = isDark ? YaadColors.borderDark : YaadColors.borderLight;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -249,7 +263,7 @@ class _ChatScreenState extends State<ChatScreen> {
               width: 32,
               height: 32,
               decoration: const BoxDecoration(
-                color: YaadColors.primary,
+                color: YaadColors.goldPrimary,
                 shape: BoxShape.circle,
               ),
               child: const Center(
@@ -262,14 +276,14 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: isUser ? YaadColors.primary : YaadColors.surfaceLight,
+                color: cardBg,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(16),
                   topRight: const Radius.circular(16),
                   bottomLeft: Radius.circular(isUser ? 16 : 4),
                   bottomRight: Radius.circular(isUser ? 4 : 16),
                 ),
-                border: isUser ? null : Border.all(color: YaadColors.borderLight),
+                border: isUser ? null : Border.all(color: borderColor),
                 boxShadow: isUser ? null : YaadShadows.subtle,
               ),
               child: Column(
@@ -277,8 +291,12 @@ class _ChatScreenState extends State<ChatScreen> {
                 children: [
                   Text(
                     msg.text,
-                    style: YaadTypography.bodyMedium.copyWith(
-                      color: isUser ? Colors.white : YaadColors.textPrimaryLight,
+                    style: TextStyle(
+                      color: isUser
+                          ? Colors.white
+                          : (isDark ? YaadColors.textPrimaryDark : YaadColors.textPrimaryLight),
+                      fontSize: 14,
+                      height: 1.4,
                     ),
                   ),
                   if (msg.relatedMemoryTitle != null) ...[
@@ -286,13 +304,15 @@ class _ChatScreenState extends State<ChatScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: YaadColors.accentLight,
+                        color: isDark ? YaadColors.surfaceRaised : YaadColors.accentLight,
                         borderRadius: YaadRadius.borderMd,
-                        border: Border.all(color: const Color(0x4DD97706)),
+                        border: Border.all(
+                          color: isDark ? YaadColors.goldBorder : const Color(0x4DD97706),
+                        ),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.bookmark_added_outlined, color: YaadColors.accent, size: 20),
+                          const Icon(Icons.bookmark_added_outlined, color: YaadColors.goldAccent, size: 20),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Column(
@@ -300,13 +320,13 @@ class _ChatScreenState extends State<ChatScreen> {
                               children: [
                                 Text(
                                   msg.relatedMemoryTitle!,
-                                  style: YaadTypography.titleSmall.copyWith(fontSize: 13),
+                                  style: YaadTypography.titleSmallOf(context).copyWith(fontSize: 13),
                                 ),
                                 if (msg.relatedMemoryDetail != null)
                                   Text(
                                     msg.relatedMemoryDetail!,
-                                    style: YaadTypography.labelSmall.copyWith(
-                                      color: YaadColors.textSecondaryLight,
+                                    style: TextStyle(
+                                      color: isDark ? YaadColors.textSecondaryDark : YaadColors.textSecondaryLight,
                                       fontSize: 11,
                                     ),
                                   ),

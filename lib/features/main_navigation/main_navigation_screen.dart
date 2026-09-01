@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/color_tokens.dart';
 import '../../app/theme/radius_tokens.dart';
 import '../../app/theme/shadow_tokens.dart';
-import '../../app/theme/typography_tokens.dart';
 
 class MainNavigationScreen extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
@@ -28,12 +27,16 @@ class MainNavigationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final navBg = isDark ? YaadColors.surfaceDark : YaadColors.surfaceLight;
+    final borderColor = isDark ? YaadColors.borderDark : YaadColors.borderLight;
+
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: YaadColors.surfaceLight,
-          border: Border(top: BorderSide(color: YaadColors.borderLight, width: 1)),
+        decoration: BoxDecoration(
+          color: navBg,
+          border: Border(top: BorderSide(color: borderColor, width: 1)),
         ),
         child: SafeArea(
           child: SizedBox(
@@ -86,7 +89,11 @@ class MainNavigationScreen extends StatelessWidget {
     required IconData activeIcon,
     required String label,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isSelected = navigationShell.currentIndex == index;
+    final activeColor = isDark ? YaadColors.goldAccent : YaadColors.primary;
+    final inactiveColor = isDark ? YaadColors.textMutedDark : YaadColors.textMutedLight;
+
     return Expanded(
       child: Semantics(
         label: label,
@@ -100,14 +107,14 @@ class MainNavigationScreen extends StatelessWidget {
             children: [
               Icon(
                 isSelected ? activeIcon : icon,
-                color: isSelected ? YaadColors.primary : YaadColors.textMutedLight,
+                color: isSelected ? activeColor : inactiveColor,
                 size: 24,
               ),
               const SizedBox(height: 2),
               Text(
                 label,
-                style: YaadTypography.labelSmall.copyWith(
-                  color: isSelected ? YaadColors.primary : YaadColors.textMutedLight,
+                style: TextStyle(
+                  color: isSelected ? activeColor : inactiveColor,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   fontSize: 11,
                 ),

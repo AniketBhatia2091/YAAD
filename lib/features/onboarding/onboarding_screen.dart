@@ -56,8 +56,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? YaadColors.borderDark : YaadColors.borderLight;
+
     return Scaffold(
-      backgroundColor: YaadColors.backgroundLight,
       body: SafeArea(
         child: Padding(
           padding: YaadSpacing.pagePadding,
@@ -71,27 +73,29 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 children: [
                   Text(
                     AppConstants.appName,
-                    style: YaadTypography.displayLarge.copyWith(
+                    style: (isDark ? YaadTypography.displayLargeDark : YaadTypography.displayLarge).copyWith(
                       letterSpacing: -1.0,
-                      color: YaadColors.primary,
+                      color: isDark ? YaadColors.creamText : YaadColors.primary,
                     ),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: YaadColors.surfaceSubtleLight,
+                      color: isDark ? YaadColors.surfaceSubtleDark : YaadColors.surfaceSubtleLight,
                       borderRadius: YaadRadius.borderPill,
-                      border: Border.all(color: YaadColors.borderLight),
+                      border: Border.all(color: borderColor),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.lock_outline_rounded, size: 14, color: YaadColors.success),
+                        const Icon(Icons.shield_outlined, size: 14, color: YaadColors.success),
                         const SizedBox(width: 4),
                         Text(
                           AppConstants.privacyBadge,
-                          style: YaadTypography.labelSmall.copyWith(
-                            color: YaadColors.textSecondaryLight,
+                          style: TextStyle(
+                            color: isDark ? YaadColors.textSecondaryDark : YaadColors.textSecondaryLight,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ],
@@ -120,26 +124,28 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         Container(
                           width: 64,
                           height: 64,
-                          decoration: const BoxDecoration(
-                            color: YaadColors.accentLight,
+                          decoration: BoxDecoration(
+                            color: isDark ? YaadColors.goldSurface : YaadColors.accentLight,
                             borderRadius: YaadRadius.borderLg,
                           ),
                           child: Icon(
                             step.icon,
                             size: 32,
-                            color: YaadColors.accent,
+                            color: YaadColors.goldAccent,
                           ),
                         ),
                         const SizedBox(height: YaadSpacing.xl),
                         Text(
                           step.headline,
-                          style: YaadTypography.displayLarge,
+                          style: (isDark ? YaadTypography.displayLargeDark : YaadTypography.displayLarge).copyWith(fontSize: 28),
                         ),
                         const SizedBox(height: YaadSpacing.md),
                         Text(
                           step.supportingCopy,
-                          style: YaadTypography.bodyLarge.copyWith(
-                            color: YaadColors.textSecondaryLight,
+                          style: TextStyle(
+                            color: isDark ? YaadColors.textSecondaryDark : YaadColors.textSecondaryLight,
+                            fontSize: 16,
+                            height: 1.45,
                           ),
                         ),
                       ],
@@ -158,7 +164,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     height: 8,
                     width: _currentPage == index ? 24 : 8,
                     decoration: BoxDecoration(
-                      color: _currentPage == index ? YaadColors.primary : YaadColors.borderLight,
+                      color: _currentPage == index
+                          ? (isDark ? YaadColors.goldAccent : YaadColors.primary)
+                          : borderColor,
                       borderRadius: YaadRadius.borderPill,
                     ),
                   ),
@@ -172,15 +180,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 height: YaadSpacing.minTouchTarget,
                 child: ElevatedButton(
                   onPressed: _onNextPressed,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isDark ? YaadColors.goldPrimary : YaadColors.primary,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         _steps[_currentPage].ctaText,
-                        style: YaadTypography.labelLarge.copyWith(color: Colors.white),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16),
                       ),
                       const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward_rounded, size: 20),
+                      const Icon(Icons.arrow_forward_rounded, size: 20, color: Colors.white),
                     ],
                   ),
                 ),

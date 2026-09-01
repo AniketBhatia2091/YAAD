@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme/color_tokens.dart';
@@ -15,9 +16,9 @@ class VaultScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final categoriesAsync = ref.watch(vaultCategoriesProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: YaadColors.backgroundLight,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: YaadSpacing.md, vertical: YaadSpacing.sm),
@@ -27,23 +28,35 @@ class VaultScreen extends ConsumerWidget {
               // Vault Header
               Text(
                 'Life Vault',
-                style: YaadTypography.displayLarge.copyWith(letterSpacing: -0.5),
+                style: (isDark ? YaadTypography.displayLargeDark : YaadTypography.displayLarge).copyWith(
+                  letterSpacing: -0.5,
+                  color: isDark ? YaadColors.creamText : YaadColors.primary,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
                 'Organized by your real life, not file folders.',
-                style: YaadTypography.bodyMedium.copyWith(
-                  color: YaadColors.textSecondaryLight,
+                style: TextStyle(
+                  color: isDark ? YaadColors.creamMuted : YaadColors.textSecondaryLight,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
               const SizedBox(height: YaadSpacing.lg),
 
-              // Categories Grid
+              // Categories Bento Grid
               Expanded(
                 child: categoriesAsync.when(
-                  data: (categories) => _buildCategoryList(context, categories),
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (err, stack) => const Center(child: Text('Failed to load categories')),
+                  data: (categories) => _buildBentoGrid(context, categories, isDark),
+                  loading: () => const Center(
+                    child: CircularProgressIndicator(color: YaadColors.goldAccent),
+                  ),
+                  error: (err, stack) => Center(
+                    child: Text(
+                      'Failed to load categories',
+                      style: TextStyle(color: isDark ? YaadColors.textPrimaryDark : YaadColors.textPrimaryLight),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -53,77 +66,136 @@ class VaultScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildCategoryList(BuildContext context, List<VaultCategory> categories) {
-    return ListView.builder(
+  Widget _buildBentoGrid(BuildContext context, List<VaultCategory> categories, bool isDark) {
+    return GridView.builder(
+      physics: const BouncingScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.15,
+      ),
       itemCount: categories.length,
       itemBuilder: (context, index) {
         final cat = categories[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: YaadSpacing.sm),
-          child: Container(
-            padding: YaadSpacing.cardPadding,
-            decoration: BoxDecoration(
-              color: YaadColors.surfaceLight,
-              borderRadius: YaadRadius.borderLg,
-              border: Border.all(color: YaadColors.borderLight),
-              boxShadow: YaadShadows.subtle,
-            ),
-            child: Row(
-              children: [
-                // Category Colored Icon Container
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: cat.backgroundColor,
-                    borderRadius: YaadRadius.borderMd,
-                  ),
-                  child: Icon(
-                    cat.icon,
-                    size: 26,
-                    color: cat.iconColor,
-                  ),
-                ),
-                const SizedBox(width: 16),
+        final cardBg = isDark ? YaadColors.surfaceDark : YaadColors.surfaceLight;
+        final border = isDark ? YaadColors.borderDark : YaadColors.borderLight;
 
-                // Category Title & Description
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        // Visual jewel-accented icon container
+        Color iconBg;
+        Color iconColor;
+
+        switch (cat.key.toLowerCase()) {
+          case 'ids':
+            iconBg = isDark ? YaadColors.categoryIdsDarkBg : YaadColors.categoryIds;
+            iconColor = YaadColors.categoryIdsIcon;
+            break;
+          case 'bills':
+            iconBg = isDark ? YaadColors.categoryBillsDarkBg : YaadColors.categoryBills;
+            iconColor = YaadColors.categoryBillsIcon;
+            break;
+          case 'vehicles':
+            iconBg = isDark ? YaadColors.categoryVehiclesDarkBg : YaadColors.categoryVehicles;
+            iconColor = YaadColors.categoryVehiclesIcon;
+            break;
+          case 'medical':
+            iconBg = isDark ? YaadColors.categoryMedicalDarkBg : YaadColors.categoryMedical;
+            iconColor = YaadColors.categoryMedicalIcon;
+            break;
+          case 'warranties':
+            iconBg = isDark ? YaadColors.categoryWarrantiesDarkBg : YaadColors.categoryWarranties;
+            iconColor = YaadColors.categoryWarrantiesIcon;
+            break;
+          case 'education':
+            iconBg = isDark ? YaadColors.categoryEducationDarkBg : YaadColors.categoryEducation;
+            iconColor = YaadColors.categoryEducationIcon;
+            break;
+          default:
+            iconBg = isDark ? YaadColors.categoryUnsortedDarkBg : YaadColors.categoryUnsorted;
+            iconColor = YaadColors.categoryUnsortedIcon;
+        }
+
+        return Semantics(
+          label: 'Category ${cat.title}. ${cat.count} items. ${cat.description}',
+          button: true,
+          child: InkWell(
+            onTap: () => context.push('/vault/category/${cat.key}'),
+            borderRadius: YaadRadius.borderLg,
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: YaadRadius.borderLg,
+                border: Border.all(color: border),
+                boxShadow: YaadShadows.subtle,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Top Row: Category Icon + Count Badge
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        cat.title,
-                        style: YaadTypography.titleMedium,
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: iconBg,
+                          borderRadius: YaadRadius.borderMd,
+                        ),
+                        child: Icon(
+                          cat.icon,
+                          size: 22,
+                          color: iconColor,
+                        ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        cat.description,
-                        style: YaadTypography.bodyMedium.copyWith(
-                          fontSize: 13,
-                          color: YaadColors.textSecondaryLight,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isDark ? YaadColors.surfaceRaised : YaadColors.surfaceSubtleLight,
+                          borderRadius: YaadRadius.borderPill,
+                          border: Border.all(color: border),
+                        ),
+                        child: Text(
+                          '${cat.count}',
+                          style: TextStyle(
+                            color: isDark ? YaadColors.goldAccent : YaadColors.primary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
 
-                // Memory Count Badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: YaadColors.surfaceSubtleLight,
-                    borderRadius: YaadRadius.borderPill,
-                    border: Border.all(color: YaadColors.borderLight),
+                  // Bottom Info: Title and Description
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        cat.title,
+                        style: YaadTypography.titleSmallOf(context).copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        cat.description,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? YaadColors.textSecondaryDark : YaadColors.textSecondaryLight,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
-                  child: Text(
-                    '${cat.count}',
-                    style: YaadTypography.labelSmall.copyWith(
-                      color: YaadColors.primary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );

@@ -12,6 +12,7 @@ import '../features/onboarding/onboarding_screen.dart';
 import '../features/search/search_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/understanding/understanding_screen.dart';
+import '../features/vault/category_memories_screen.dart';
 import '../features/vault/vault_screen.dart';
 import 'providers.dart';
 
@@ -76,6 +77,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final memoryId = state.pathParameters['id'] ?? '';
           return MemoryDetailScreen(memoryId: memoryId);
+        },
+      ),
+
+      // Category Memories Screen
+      GoRoute(
+        path: '/vault/category/:key',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final key = state.pathParameters['key'] ?? '';
+          return CategoryMemoriesScreen(categoryKey: key);
         },
       ),
 

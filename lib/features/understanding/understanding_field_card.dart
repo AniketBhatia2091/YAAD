@@ -73,6 +73,9 @@ class _UnderstandingFieldCardState extends State<UnderstandingFieldCard> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? YaadColors.surfaceDark : YaadColors.surfaceLight;
+    final borderColor = isDark ? YaadColors.borderDark : YaadColors.borderLight;
     final field = widget.field;
     final hasValue = field.value != null && field.value!.trim().isNotEmpty;
 
@@ -80,10 +83,10 @@ class _UnderstandingFieldCardState extends State<UnderstandingFieldCard> {
       margin: const EdgeInsets.only(bottom: YaadSpacing.sm),
       padding: YaadSpacing.cardPadding,
       decoration: BoxDecoration(
-        color: YaadColors.surfaceLight,
+        color: cardBg,
         borderRadius: YaadRadius.borderLg,
         border: Border.all(
-          color: widget.isConfirmed ? YaadColors.success : YaadColors.borderLight,
+          color: widget.isConfirmed ? YaadColors.success : borderColor,
           width: widget.isConfirmed ? 1.5 : 1.0,
         ),
       ),
@@ -96,8 +99,7 @@ class _UnderstandingFieldCardState extends State<UnderstandingFieldCard> {
             children: [
               Text(
                 field.displayLabel,
-                style: YaadTypography.labelSmall.copyWith(
-                  color: YaadColors.textMutedLight,
+                style: (isDark ? YaadTypography.labelSmallDark : YaadTypography.labelSmall).copyWith(
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
                 ),
@@ -125,7 +127,7 @@ class _UnderstandingFieldCardState extends State<UnderstandingFieldCard> {
             TextField(
               controller: _controller,
               autofocus: true,
-              style: YaadTypography.titleMedium,
+              style: YaadTypography.titleMediumOf(context),
               decoration: InputDecoration(
                 hintText: 'Enter ${field.displayLabel.toLowerCase()}',
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -144,7 +146,7 @@ class _UnderstandingFieldCardState extends State<UnderstandingFieldCard> {
                 ElevatedButton(
                   onPressed: _saveEdit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: YaadColors.primary,
+                    backgroundColor: YaadColors.goldPrimary,
                     minimumSize: const Size(80, 36),
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                   ),
@@ -157,12 +159,11 @@ class _UnderstandingFieldCardState extends State<UnderstandingFieldCard> {
             Text(
               hasValue ? field.value! : 'Not specified',
               style: hasValue
-                  ? YaadTypography.titleMedium.copyWith(
+                  ? (isDark ? YaadTypography.titleMediumDark : YaadTypography.titleMedium).copyWith(
                       fontWeight: FontWeight.w600,
-                      color: YaadColors.textPrimaryLight,
                     )
-                  : YaadTypography.bodyMedium.copyWith(
-                      color: YaadColors.textMutedLight,
+                  : (isDark ? YaadTypography.bodyMediumDark : YaadTypography.bodyMedium).copyWith(
+                      color: isDark ? YaadColors.textMutedDark : YaadColors.textMutedLight,
                       fontStyle: FontStyle.italic,
                     ),
             ),

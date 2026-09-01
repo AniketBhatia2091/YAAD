@@ -147,10 +147,10 @@ class _UnderstandingScreenState extends ConsumerState<UnderstandingScreen> {
         );
         context.go('/memory/${widget.memoryId}');
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to confirm memory: $e')),
+          const SnackBar(content: Text('YAAD couldn\'t confirm this memory right now. Please try again.')),
         );
         setState(() {
           _isSaving = false;
@@ -170,16 +170,16 @@ class _UnderstandingScreenState extends ConsumerState<UnderstandingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (_isLoading) {
       return const Scaffold(
-        backgroundColor: YaadColors.backgroundLight,
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(child: CircularProgressIndicator(color: YaadColors.goldAccent)),
       );
     }
 
     if (_memory == null) {
       return Scaffold(
-        backgroundColor: YaadColors.backgroundLight,
         appBar: AppBar(title: const Text('Understanding')),
         body: const Center(child: Text('Memory not found.')),
       );
@@ -187,9 +187,10 @@ class _UnderstandingScreenState extends ConsumerState<UnderstandingScreen> {
 
     final imageFile = _memory!.imagePath != null ? File(_memory!.imagePath!) : null;
     final hasValidImage = imageFile != null && imageFile.existsSync();
+    final cardBg = isDark ? YaadColors.surfaceDark : YaadColors.surfaceLight;
+    final borderColor = isDark ? YaadColors.borderDark : YaadColors.borderLight;
 
     return Scaffold(
-      backgroundColor: YaadColors.backgroundLight,
       appBar: AppBar(
         title: const Text('YAAD Understanding'),
         leading: IconButton(
@@ -218,9 +219,10 @@ class _UnderstandingScreenState extends ConsumerState<UnderstandingScreen> {
                         width: double.infinity,
                         constraints: const BoxConstraints(maxHeight: 200),
                         margin: const EdgeInsets.only(bottom: YaadSpacing.md),
-                        decoration: const BoxDecoration(
-                          color: YaadColors.surfaceDark,
+                        decoration: BoxDecoration(
+                          color: isDark ? YaadColors.surfaceDark : Colors.black,
                           borderRadius: YaadRadius.borderLg,
+                          border: Border.all(color: borderColor),
                           boxShadow: YaadShadows.subtle,
                         ),
                         clipBehavior: Clip.antiAlias,
@@ -235,35 +237,36 @@ class _UnderstandingScreenState extends ConsumerState<UnderstandingScreen> {
                       Container(
                         padding: YaadSpacing.cardPadding,
                         decoration: BoxDecoration(
-                          color: YaadColors.surfaceLight,
+                          color: cardBg,
                           borderRadius: YaadRadius.borderLg,
-                          border: Border.all(color: YaadColors.borderLight),
+                          border: Border.all(color: borderColor),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Row(
+                            Row(
                               children: [
-                                SizedBox(
+                                const SizedBox(
                                   width: 20,
                                   height: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2.5,
-                                    color: YaadColors.accent,
+                                    color: YaadColors.goldAccent,
                                   ),
                                 ),
-                                SizedBox(width: 12),
+                                const SizedBox(width: 12),
                                 Text(
                                   'Understanding this memory…',
-                                  style: YaadTypography.titleMedium,
+                                  style: YaadTypography.titleMediumOf(context),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 8),
                             Text(
                               'Identifying document structure, key dates, and amounts.',
-                              style: YaadTypography.bodyMedium.copyWith(
-                                color: YaadColors.textSecondaryLight,
+                              style: TextStyle(
+                                color: isDark ? YaadColors.textSecondaryDark : YaadColors.textSecondaryLight,
+                                fontSize: 13,
                               ),
                             ),
                           ],
@@ -274,34 +277,35 @@ class _UnderstandingScreenState extends ConsumerState<UnderstandingScreen> {
                       Container(
                         padding: YaadSpacing.cardPadding,
                         decoration: BoxDecoration(
-                          color: YaadColors.surfaceLight,
+                          color: cardBg,
                           borderRadius: YaadRadius.borderLg,
-                          border: Border.all(color: YaadColors.borderLight),
+                          border: Border.all(color: borderColor),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Row(
+                            Row(
                               children: [
-                                Icon(
+                                const Icon(
                                   Icons.help_outline_rounded,
-                                  color: YaadColors.accent,
+                                  color: YaadColors.goldAccent,
                                   size: 26,
                                 ),
-                                SizedBox(width: 10),
+                                const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
                                     'YAAD couldn\'t understand this yet',
-                                    style: YaadTypography.titleMedium,
+                                    style: YaadTypography.titleMediumOf(context),
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Your memory is safely saved. You can keep it and try understanding again later.',
-                              style: YaadTypography.bodyMedium.copyWith(
-                                color: YaadColors.textSecondaryLight,
+                              'Your memory is safely saved. You can keep it in your vault and review it anytime.',
+                              style: TextStyle(
+                                color: isDark ? YaadColors.textSecondaryDark : YaadColors.textSecondaryLight,
+                                fontSize: 13,
                               ),
                             ),
                             const SizedBox(height: YaadSpacing.lg),
@@ -321,13 +325,11 @@ class _UnderstandingScreenState extends ConsumerState<UnderstandingScreen> {
                                   child: ElevatedButton(
                                     onPressed: _isSaving ? null : _loadMemoryAndUnderstand,
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: YaadColors.primary,
+                                      backgroundColor: YaadColors.goldPrimary,
+                                      foregroundColor: Colors.white,
                                       padding: const EdgeInsets.symmetric(vertical: 12),
                                     ),
-                                    child: const Text(
-                                      'Try again',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
+                                    child: const Text('Try again'),
                                   ),
                                 ),
                               ],
@@ -337,25 +339,26 @@ class _UnderstandingScreenState extends ConsumerState<UnderstandingScreen> {
                       ),
                     ] else ...[
                       // State B: Needs Review (Extracted fields found)
-                      const Row(
+                      Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.auto_awesome_rounded,
-                            color: YaadColors.accent,
+                            color: YaadColors.goldAccent,
                             size: 20,
                           ),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Text(
                             'Here\'s what YAAD found',
-                            style: YaadTypography.titleLarge,
+                            style: (isDark ? YaadTypography.titleLargeDark : YaadTypography.titleLarge).copyWith(fontSize: 18),
                           ),
                         ],
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Review and edit extracted values before confirming.',
-                        style: YaadTypography.bodyMedium.copyWith(
-                          color: YaadColors.textSecondaryLight,
+                        style: TextStyle(
+                          color: isDark ? YaadColors.textSecondaryDark : YaadColors.textSecondaryLight,
+                          fontSize: 13,
                         ),
                       ),
                       const SizedBox(height: YaadSpacing.md),
@@ -395,9 +398,9 @@ class _UnderstandingScreenState extends ConsumerState<UnderstandingScreen> {
             if (!_isProcessing && _fields.isNotEmpty)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: const BoxDecoration(
-                  color: YaadColors.surfaceLight,
-                  border: Border(top: BorderSide(color: YaadColors.borderLight)),
+                decoration: BoxDecoration(
+                  color: cardBg,
+                  border: Border(top: BorderSide(color: borderColor)),
                   boxShadow: YaadShadows.card,
                 ),
                 child: SizedBox(
@@ -421,7 +424,7 @@ class _UnderstandingScreenState extends ConsumerState<UnderstandingScreen> {
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: YaadColors.accent,
+                      backgroundColor: YaadColors.goldPrimary,
                       shape: const RoundedRectangleBorder(borderRadius: YaadRadius.borderMd),
                     ),
                   ),

@@ -98,7 +98,7 @@ void main() {
     // Vault category count reflects persistent memory
     final categories = await repoB.getVaultCategories();
     final billsCategory = categories.firstWhere((c) => c.key == 'bills');
-    expect(billsCategory.count, greaterThanOrEqualTo(6));
+    expect(billsCategory.count, greaterThanOrEqualTo(2));
 
     await dbB.close();
   });
@@ -184,7 +184,7 @@ void main() {
     // Verify it moved to the Bills category in Vault across restart
     final categories = await repo2.getVaultCategories();
     final billsCategory = categories.firstWhere((c) => c.key == 'bills');
-    expect(billsCategory.count, greaterThanOrEqualTo(6));
+    expect(billsCategory.count, greaterThanOrEqualTo(2));
 
     // 4. Update structured field and verify persistence
     const editedAmount = UnderstandingField(

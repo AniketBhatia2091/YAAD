@@ -9,6 +9,10 @@ import '../../app/theme/shadow_tokens.dart';
 import '../../app/theme/spacing_tokens.dart';
 import '../../app/theme/typography_tokens.dart';
 
+/// Architecture Note:
+/// Search currently performs in-memory and SQLite LIKE matching across title,
+/// documentType, category, owner, notes, and structured fields.
+/// Full-Text Search (FTS5 / sqlite_fts) is planned for a future release.
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
 
@@ -42,9 +46,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget build(BuildContext context) {
     final searchResultsAsync = ref.watch(searchResultsProvider);
     final currentQuery = ref.watch(searchQueryProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: YaadColors.backgroundLight,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: YaadSpacing.md, vertical: YaadSpacing.sm),
@@ -54,7 +58,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               // Headline
               Text(
                 'Find anything you\'ve remembered.',
-                style: YaadTypography.displayLarge.copyWith(letterSpacing: -0.5),
+                style: (isDark ? YaadTypography.displayLargeDark : YaadTypography.displayLarge).copyWith(
+                  letterSpacing: -0.5,
+                  color: isDark ? YaadColors.creamText : YaadColors.primary,
+                ),
               ),
               const SizedBox(height: YaadSpacing.md),
 
@@ -66,10 +73,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 },
                 decoration: InputDecoration(
                   hintText: 'Search your life...',
-                  prefixIcon: const Icon(Icons.search_rounded, color: YaadColors.textSecondaryLight),
+                  prefixIcon: Icon(
+                    Icons.search_rounded,
+                    color: isDark ? YaadColors.goldAccent : YaadColors.textSecondaryLight,
+                  ),
                   suffixIcon: currentQuery.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear_rounded, color: YaadColors.textMutedLight),
+                          icon: Icon(
+                            Icons.clear_rounded,
+                            color: isDark ? YaadColors.textMutedDark : YaadColors.textMutedLight,
+                          ),
                           onPressed: () {
                             _searchController.clear();
                             ref.read(searchQueryProvider.notifier).state = '';
@@ -92,16 +105,21 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         label: Text(query),
                         selected: isSelected,
                         onSelected: (_) => _onQuerySelected(query),
-                        selectedColor: YaadColors.primary,
-                        backgroundColor: YaadColors.surfaceLight,
-                        labelStyle: YaadTypography.labelSmall.copyWith(
-                          color: isSelected ? Colors.white : YaadColors.textPrimaryLight,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                        selectedColor: isDark ? YaadColors.goldPrimary : YaadColors.primary,
+                        backgroundColor: isDark ? YaadColors.surfaceDark : YaadColors.surfaceLight,
+                        labelStyle: TextStyle(
+                          color: isSelected
+                              ? Colors.white
+                              : (isDark ? YaadColors.creamMuted : YaadColors.textPrimaryLight),
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          fontSize: 12,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: YaadRadius.borderPill,
                           side: BorderSide(
-                            color: isSelected ? YaadColors.primary : YaadColors.borderLight,
+                            color: isSelected
+                                ? (isDark ? YaadColors.goldAccent : YaadColors.primary)
+                                : (isDark ? YaadColors.borderDark : YaadColors.borderLight),
                           ),
                         ),
                       ),
@@ -120,11 +138,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.search_off_rounded, size: 48, color: YaadColors.textMutedLight),
+                            Icon(
+                              Icons.search_off_rounded,
+                              size: 48,
+                              color: isDark ? YaadColors.textMutedDark : YaadColors.textMutedLight,
+                            ),
                             const SizedBox(height: 12),
                             Text(
                               'No memories matched "$currentQuery"',
-                              style: YaadTypography.bodyLarge,
+                              style: TextStyle(
+                                color: isDark ? YaadColors.textSecondaryDark : YaadColors.textSecondaryLight,
+                                fontSize: 15,
+                              ),
                             ),
                           ],
                         ),
@@ -135,64 +160,76 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       itemCount: memories.length,
                       itemBuilder: (context, index) {
                         final memory = memories[index];
+                        final cardBg = isDark ? YaadColors.surfaceDark : YaadColors.surfaceLight;
+                        final borderColor = isDark ? YaadColors.borderDark : YaadColors.borderLight;
+
                         return Padding(
                           padding: const EdgeInsets.only(bottom: YaadSpacing.sm),
-                          child: InkWell(
-                            onTap: () => context.push('/memory/${memory.id}'),
-                            borderRadius: YaadRadius.borderLg,
-                            child: Container(
-                              padding: YaadSpacing.cardPadding,
-                              decoration: BoxDecoration(
-                                color: YaadColors.surfaceLight,
-                                borderRadius: YaadRadius.borderLg,
-                                border: Border.all(color: YaadColors.borderLight),
-                                boxShadow: YaadShadows.subtle,
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: const BoxDecoration(
-                                      color: YaadColors.surfaceSubtleLight,
-                                      borderRadius: YaadRadius.borderMd,
+                          child: Semantics(
+                            label: 'Result: ${memory.displayTitle}. ${memory.subtitle ?? memory.documentType}',
+                            button: true,
+                            child: InkWell(
+                              onTap: () => context.push('/memory/${memory.id}'),
+                              borderRadius: YaadRadius.borderLg,
+                              child: Container(
+                                padding: YaadSpacing.cardPadding,
+                                decoration: BoxDecoration(
+                                  color: cardBg,
+                                  borderRadius: YaadRadius.borderLg,
+                                  border: Border.all(color: borderColor),
+                                  boxShadow: YaadShadows.subtle,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? YaadColors.surfaceRaised : YaadColors.surfaceSubtleLight,
+                                        borderRadius: YaadRadius.borderMd,
+                                      ),
+                                      child: Icon(
+                                        memory.imagePath != null ? Icons.image_outlined : Icons.description_outlined,
+                                        color: isDark ? YaadColors.goldAccent : YaadColors.primary,
+                                        size: 24,
+                                      ),
                                     ),
-                                    child: Icon(
-                                      memory.imagePath != null ? Icons.image_outlined : Icons.description_outlined,
-                                      color: YaadColors.primary,
-                                      size: 24,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          memory.displayTitle,
-                                          style: YaadTypography.titleMedium,
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          memory.subtitle ?? memory.documentType,
-                                          style: YaadTypography.bodyMedium.copyWith(
-                                            color: YaadColors.textSecondaryLight,
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            memory.displayTitle,
+                                            style: YaadTypography.titleSmallOf(context),
                                           ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            memory.subtitle ?? memory.documentType,
+                                            style: TextStyle(
+                                              color: isDark ? YaadColors.textSecondaryDark : YaadColors.textSecondaryLight,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? YaadColors.surfaceRaised : YaadColors.surfaceSubtleLight,
+                                        borderRadius: YaadRadius.borderPill,
+                                      ),
+                                      child: Text(
+                                        memory.owner,
+                                        style: TextStyle(
+                                          color: isDark ? YaadColors.creamMuted : YaadColors.textSecondaryLight,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
                                         ),
-                                      ],
+                                      ),
                                     ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: const BoxDecoration(
-                                      color: YaadColors.surfaceSubtleLight,
-                                      borderRadius: YaadRadius.borderPill,
-                                    ),
-                                    child: Text(
-                                      memory.owner,
-                                      style: YaadTypography.labelSmall,
-                                    ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -200,8 +237,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       },
                     );
                   },
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (err, stack) => const Center(child: Text('Error loading search results')),
+                  loading: () => const Center(
+                    child: CircularProgressIndicator(color: YaadColors.goldAccent),
+                  ),
+                  error: (err, stack) => Center(
+                    child: Text(
+                      'We couldn\'t perform this search.',
+                      style: TextStyle(color: isDark ? YaadColors.textSecondaryDark : YaadColors.textSecondaryLight),
+                    ),
+                  ),
                 ),
               ),
             ],

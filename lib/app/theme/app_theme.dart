@@ -159,13 +159,55 @@ abstract class YaadTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: YaadRadius.borderMd,
-          borderSide: BorderSide(color: YaadColors.accent, width: 1.5),
+          borderSide: BorderSide(color: YaadColors.goldAccent, width: 1.5),
         ),
         hintStyle: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w400,
           color: YaadColors.textMutedDark,
         ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: YaadColors.goldPrimary,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          minimumSize: const Size(double.infinity, YaadSpacing.minTouchTarget),
+          padding: YaadSpacing.buttonPadding,
+          shape: const RoundedRectangleBorder(
+            borderRadius: YaadRadius.borderMd,
+          ),
+          textStyle: YaadTypography.labelLargeDark.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: YaadColors.textPrimaryDark,
+          minimumSize: const Size(double.infinity, YaadSpacing.minTouchTarget),
+          padding: YaadSpacing.buttonPadding,
+          side: const BorderSide(color: YaadColors.borderGlass, width: 1.5),
+          shape: const RoundedRectangleBorder(
+            borderRadius: YaadRadius.borderMd,
+          ),
+          textStyle: YaadTypography.labelLargeDark,
+        ),
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: YaadColors.surfaceDark,
+        selectedItemColor: YaadColors.goldAccent,
+        unselectedItemColor: YaadColors.textMutedDark,
+        type: BottomNavigationBarType.fixed,
+        elevation: 8,
+        selectedLabelStyle: YaadTypography.labelSmallDark,
+        unselectedLabelStyle: YaadTypography.labelSmallDark,
+      ),
+      dividerTheme: const DividerThemeData(
+        color: YaadColors.borderDark,
+        thickness: 1,
+        space: 1,
       ),
     );
   }

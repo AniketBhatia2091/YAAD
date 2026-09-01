@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -73,6 +74,31 @@ class OnboardingNotifier extends StateNotifier<bool> {
   }
 }
 
+/// Theme Mode Notifier (Defaulting to ThemeMode.dark with User Preferences support)
+final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return ThemeModeNotifier(prefs);
+});
+
+class ThemeModeNotifier extends StateNotifier<ThemeMode> {
+  final SharedPreferences _prefs;
+  static const _key = 'yaad_theme_mode';
+
+  ThemeModeNotifier(this._prefs) : super(_loadThemeMode(_prefs));
+
+  static ThemeMode _loadThemeMode(SharedPreferences prefs) {
+    final val = prefs.getString(_key);
+    if (val == 'light') return ThemeMode.light;
+    if (val == 'system') return ThemeMode.system;
+    return ThemeMode.dark; // Default to premium dark experience
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
+    state = mode;
+    await _prefs.setString(_key, mode.name);
+  }
+}
+
 /// Memory Repository Provider (Backed by LocalMemoryRepository & SQLite Storage)
 final memoryRepositoryProvider = Provider<MemoryRepository>((ref) {
   final storage = ref.watch(storageServiceProvider);
@@ -121,4 +147,10 @@ final searchResultsProvider = FutureProvider<List<Memory>>((ref) async {
   final query = ref.watch(searchQueryProvider);
   final repo = ref.watch(memoryRepositoryProvider);
   return repo.searchMemories(query);
+});
+
+/// All Memories Provider
+final allMemoriesProvider = FutureProvider<List<Memory>>((ref) async {
+  final repo = ref.watch(memoryRepositoryProvider);
+  return repo.getAllMemories();
 });

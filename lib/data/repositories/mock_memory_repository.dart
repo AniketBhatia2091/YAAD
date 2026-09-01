@@ -173,7 +173,7 @@ class MockMemoryRepository implements MemoryRepository {
         icon: Icons.badge_outlined,
         backgroundColor: YaadColors.categoryIds,
         iconColor: YaadColors.categoryIdsIcon,
-        count: _memories.where((m) => m.categoryKey == 'ids').length + 3,
+        count: _memories.where((m) => m.categoryKey == 'ids').length,
       ),
       VaultCategory(
         key: 'bills',
@@ -182,7 +182,7 @@ class MockMemoryRepository implements MemoryRepository {
         icon: Icons.receipt_long_outlined,
         backgroundColor: YaadColors.categoryBills,
         iconColor: YaadColors.categoryBillsIcon,
-        count: _memories.where((m) => m.categoryKey == 'bills').length + 5,
+        count: _memories.where((m) => m.categoryKey == 'bills').length,
       ),
       VaultCategory(
         key: 'vehicles',
@@ -191,7 +191,7 @@ class MockMemoryRepository implements MemoryRepository {
         icon: Icons.directions_car_outlined,
         backgroundColor: YaadColors.categoryVehicles,
         iconColor: YaadColors.categoryVehiclesIcon,
-        count: _memories.where((m) => m.categoryKey == 'vehicles').length + 2,
+        count: _memories.where((m) => m.categoryKey == 'vehicles').length,
       ),
       VaultCategory(
         key: 'medical',
@@ -200,7 +200,7 @@ class MockMemoryRepository implements MemoryRepository {
         icon: Icons.health_and_safety_outlined,
         backgroundColor: YaadColors.categoryMedical,
         iconColor: YaadColors.categoryMedicalIcon,
-        count: _memories.where((m) => m.categoryKey == 'medical').length + 4,
+        count: _memories.where((m) => m.categoryKey == 'medical').length,
       ),
       VaultCategory(
         key: 'warranties',
@@ -209,7 +209,7 @@ class MockMemoryRepository implements MemoryRepository {
         icon: Icons.verified_outlined,
         backgroundColor: YaadColors.categoryWarranties,
         iconColor: YaadColors.categoryWarrantiesIcon,
-        count: _memories.where((m) => m.categoryKey == 'warranties').length + 2,
+        count: _memories.where((m) => m.categoryKey == 'warranties').length,
       ),
       VaultCategory(
         key: 'education',
@@ -218,7 +218,7 @@ class MockMemoryRepository implements MemoryRepository {
         icon: Icons.school_outlined,
         backgroundColor: YaadColors.categoryEducation,
         iconColor: YaadColors.categoryEducationIcon,
-        count: _memories.where((m) => m.categoryKey == 'education').length + 1,
+        count: _memories.where((m) => m.categoryKey == 'education').length,
       ),
     ];
   }

@@ -83,10 +83,10 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
           context.go('/');
         }
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete memory: ${e.toString()}')),
+          const SnackBar(content: Text('YAAD couldn\'t delete this memory right now. Please try again.')),
         );
         setState(() {
           _isDeleting = false;
@@ -98,9 +98,9 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final memoryAsync = ref.watch(memoryByIdProvider(widget.memoryId));
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: YaadColors.backgroundLight,
       appBar: AppBar(
         title: const Text('Memory Detail'),
         leading: IconButton(
@@ -123,6 +123,8 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
 
             final imageFile = memory.imagePath != null ? File(memory.imagePath!) : null;
             final hasValidFile = imageFile != null && imageFile.existsSync();
+            final cardBg = isDark ? YaadColors.surfaceDark : YaadColors.surfaceLight;
+            final borderColor = isDark ? YaadColors.borderDark : YaadColors.borderLight;
 
             return SingleChildScrollView(
               padding: YaadSpacing.pagePadding,
@@ -133,9 +135,10 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
                   Container(
                     width: double.infinity,
                     constraints: const BoxConstraints(maxHeight: 320),
-                    decoration: const BoxDecoration(
-                      color: YaadColors.surfaceDark,
+                    decoration: BoxDecoration(
+                      color: isDark ? YaadColors.surfaceDark : Colors.black,
                       borderRadius: YaadRadius.borderLg,
+                      border: Border.all(color: borderColor),
                       boxShadow: YaadShadows.subtle,
                     ),
                     clipBehavior: Clip.antiAlias,
@@ -144,15 +147,22 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
                             imageFile,
                             fit: BoxFit.contain,
                           )
-                        : const Center(
+                        : Center(
                             child: Padding(
-                              padding: EdgeInsets.all(32.0),
+                              padding: const EdgeInsets.all(32.0),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.image_not_supported_outlined, size: 48, color: Colors.white54),
-                                  SizedBox(height: 8),
-                                  Text('Demo Memory (No local image)', style: TextStyle(color: Colors.white70)),
+                                  Icon(Icons.image_not_supported_outlined,
+                                      size: 48,
+                                      color: isDark ? YaadColors.textMutedDark : Colors.white54),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Demo Memory (No local image)',
+                                    style: TextStyle(
+                                      color: isDark ? YaadColors.textSecondaryDark : Colors.white70,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -164,9 +174,9 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
                   Container(
                     padding: YaadSpacing.cardPadding,
                     decoration: BoxDecoration(
-                      color: YaadColors.surfaceLight,
+                      color: cardBg,
                       borderRadius: YaadRadius.borderLg,
-                      border: Border.all(color: YaadColors.borderLight),
+                      border: Border.all(color: borderColor),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,21 +187,22 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
                             Expanded(
                               child: Text(
                                 memory.displayTitle,
-                                style: YaadTypography.titleLarge,
+                                style: YaadTypography.titleLargeOf(context),
                               ),
                             ),
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: const BoxDecoration(
-                                color: YaadColors.surfaceSubtleLight,
+                              decoration: BoxDecoration(
+                                color: isDark ? YaadColors.surfaceRaised : YaadColors.surfaceSubtleLight,
                                 borderRadius: YaadRadius.borderPill,
                               ),
                               child: Text(
                                 memory.documentType.toUpperCase(),
-                                style: YaadTypography.labelSmall.copyWith(
-                                  color: YaadColors.primary,
+                                style: TextStyle(
+                                  color: isDark ? YaadColors.goldAccent : YaadColors.primary,
                                   fontWeight: FontWeight.bold,
+                                  fontSize: 11,
                                 ),
                               ),
                             ),
@@ -200,11 +211,16 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            const Icon(Icons.access_time_rounded, size: 16, color: YaadColors.textMutedLight),
+                            Icon(Icons.access_time_rounded,
+                                size: 16,
+                                color: isDark ? YaadColors.textMutedDark : YaadColors.textMutedLight),
                             const SizedBox(width: 6),
                             Text(
                               'Saved ${DateFormat('MMM d, yyyy · h:mm a').format(memory.createdAt)}',
-                              style: YaadTypography.labelSmall.copyWith(color: YaadColors.textSecondaryLight),
+                              style: TextStyle(
+                                color: isDark ? YaadColors.textSecondaryDark : YaadColors.textSecondaryLight,
+                                fontSize: 12,
+                              ),
                             ),
                           ],
                         ),
@@ -216,35 +232,39 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
                   // Understanding Section: Confirmed vs NeedsReview vs Unknown
                   if (memory.understandingStatus == UnderstandingStatus.confirmed &&
                       memory.structuredFields.isNotEmpty) ...[
-                    _buildConfirmedUnderstandingSection(context, memory),
+                    _buildConfirmedUnderstandingSection(context, memory, isDark),
                   ] else if (memory.understandingStatus == UnderstandingStatus.needsReview) ...[
-                    _buildNeedsReviewBanner(context, memory),
+                    _buildNeedsReviewBanner(context, memory, isDark),
                   ] else ...[
-                    _buildUnclassifiedNoticeBanner(context, memory),
+                    _buildUnclassifiedNoticeBanner(context, memory, isDark),
                   ],
 
                   const SizedBox(height: YaadSpacing.xl),
 
                   // Delete Memory Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: YaadSpacing.minTouchTarget,
-                    child: OutlinedButton.icon(
-                      onPressed: _isDeleting ? null : _onDeletePressed,
-                      icon: _isDeleting
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: YaadColors.attentionUrgent),
-                            )
-                          : const Icon(Icons.delete_outline_rounded, color: YaadColors.attentionUrgent),
-                      label: Text(
-                        _isDeleting ? 'Deleting...' : 'Delete memory',
-                        style: const TextStyle(color: YaadColors.attentionUrgent, fontWeight: FontWeight.w600),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: YaadColors.attentionUrgentBg, width: 1.5),
-                        shape: const RoundedRectangleBorder(borderRadius: YaadRadius.borderMd),
+                  Semantics(
+                    label: 'Delete memory',
+                    button: true,
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: YaadSpacing.minTouchTarget,
+                      child: OutlinedButton.icon(
+                        onPressed: _isDeleting ? null : _onDeletePressed,
+                        icon: _isDeleting
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: YaadColors.attentionUrgent),
+                              )
+                            : const Icon(Icons.delete_outline_rounded, color: YaadColors.attentionUrgent),
+                        label: Text(
+                          _isDeleting ? 'Deleting...' : 'Delete memory',
+                          style: const TextStyle(color: YaadColors.attentionUrgent, fontWeight: FontWeight.w600),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: YaadColors.attentionUrgentBg, width: 1.5),
+                          shape: const RoundedRectangleBorder(borderRadius: YaadRadius.borderMd),
+                        ),
                       ),
                     ),
                   ),
@@ -253,21 +273,26 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
               ),
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => Center(child: Text('Failed to load memory detail: ${err.toString()}')),
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: YaadColors.goldAccent),
+          ),
+          error: (err, stack) => const Center(child: Text('We couldn\'t load this memory.')),
         ),
       ),
     );
   }
 
   /// Displays the confirmed structured fields extracted and verified by the user.
-  Widget _buildConfirmedUnderstandingSection(BuildContext context, Memory memory) {
+  Widget _buildConfirmedUnderstandingSection(BuildContext context, Memory memory, bool isDark) {
+    final cardBg = isDark ? YaadColors.surfaceDark : YaadColors.surfaceLight;
+    final borderColor = isDark ? YaadColors.borderDark : YaadColors.borderLight;
+
     return Container(
       padding: YaadSpacing.cardPadding,
       decoration: BoxDecoration(
-        color: YaadColors.surfaceLight,
+        color: cardBg,
         borderRadius: YaadRadius.borderLg,
-        border: Border.all(color: YaadColors.borderLight),
+        border: Border.all(color: borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -281,7 +306,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
                   const SizedBox(width: 8),
                   Text(
                     'What YAAD remembers',
-                    style: YaadTypography.titleMedium.copyWith(fontWeight: FontWeight.bold),
+                    style: YaadTypography.titleMediumOf(context).copyWith(fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -289,11 +314,14 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
                 onPressed: () {
                   context.push('/understanding/${memory.id}');
                 },
-                child: const Text('Edit'),
+                child: Text(
+                  'Edit',
+                  style: TextStyle(color: isDark ? YaadColors.goldAccent : YaadColors.primary),
+                ),
               ),
             ],
           ),
-          const Divider(height: 20),
+          Divider(height: 20, color: borderColor),
           for (final field in memory.structuredFields)
             Padding(
               padding: const EdgeInsets.only(bottom: 12.0),
@@ -302,16 +330,19 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
                 children: [
                   Text(
                     field.displayLabel,
-                    style: YaadTypography.labelSmall.copyWith(
-                      color: YaadColors.textMutedLight,
+                    style: TextStyle(
+                      color: isDark ? YaadColors.textMutedDark : YaadColors.textMutedLight,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     field.value ?? 'Not specified',
-                    style: YaadTypography.bodyLarge.copyWith(
+                    style: TextStyle(
+                      color: isDark ? YaadColors.textPrimaryDark : YaadColors.textPrimaryLight,
+                      fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: YaadColors.textPrimaryLight,
                     ),
                   ),
                 ],
@@ -323,32 +354,32 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
   }
 
   /// Displays banner when understanding was run but needs user review.
-  Widget _buildNeedsReviewBanner(BuildContext context, Memory memory) {
+  Widget _buildNeedsReviewBanner(BuildContext context, Memory memory, bool isDark) {
     return Container(
       padding: YaadSpacing.cardPadding,
       decoration: BoxDecoration(
-        color: YaadColors.attentionWarningBg,
+        color: isDark ? YaadColors.surfaceDark : YaadColors.attentionWarningBg,
         borderRadius: YaadRadius.borderLg,
-        border: Border.all(color: const Color(0x4DD97706)),
+        border: Border.all(color: YaadColors.goldBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.auto_awesome_rounded, color: YaadColors.attentionWarning, size: 22),
+              const Icon(Icons.auto_awesome_rounded, color: YaadColors.goldAccent, size: 22),
               const SizedBox(width: 8),
               Text(
                 'Review understanding',
-                style: YaadTypography.titleSmall.copyWith(color: YaadColors.primary),
+                style: YaadTypography.titleSmallOf(context),
               ),
             ],
           ),
           const SizedBox(height: 6),
           Text(
             'YAAD found structured details on this document. Review and confirm them.',
-            style: YaadTypography.bodyMedium.copyWith(
-              color: YaadColors.textSecondaryLight,
+            style: TextStyle(
+              color: isDark ? YaadColors.textSecondaryDark : YaadColors.textSecondaryLight,
               fontSize: 13,
             ),
           ),
@@ -358,7 +389,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
               context.push('/understanding/${memory.id}');
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: YaadColors.accent,
+              backgroundColor: YaadColors.goldPrimary,
               foregroundColor: Colors.white,
               minimumSize: const Size(double.infinity, 38),
             ),
@@ -370,32 +401,32 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
   }
 
   /// Displays fallback banner for unclassified / unknown understanding state.
-  Widget _buildUnclassifiedNoticeBanner(BuildContext context, Memory memory) {
+  Widget _buildUnclassifiedNoticeBanner(BuildContext context, Memory memory, bool isDark) {
     return Container(
       padding: YaadSpacing.cardPadding,
       decoration: BoxDecoration(
-        color: YaadColors.accentLight,
+        color: isDark ? YaadColors.surfaceDark : YaadColors.accentLight,
         borderRadius: YaadRadius.borderLg,
-        border: Border.all(color: const Color(0x4DD97706)),
+        border: Border.all(color: isDark ? YaadColors.borderGlass : const Color(0x4DD97706)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.auto_awesome_outlined, color: YaadColors.accent, size: 22),
+              const Icon(Icons.auto_awesome_outlined, color: YaadColors.goldAccent, size: 22),
               const SizedBox(width: 8),
               Text(
                 'YAAD hasn\'t understood this yet.',
-                style: YaadTypography.titleSmall.copyWith(color: YaadColors.primary),
+                style: YaadTypography.titleSmallOf(context),
               ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
             'What\'s next:\nYAAD will identify and understand this memory when the intelligence layer is connected.',
-            style: YaadTypography.bodyMedium.copyWith(
-              color: YaadColors.textSecondaryLight,
+            style: TextStyle(
+              color: isDark ? YaadColors.textSecondaryDark : YaadColors.textSecondaryLight,
               fontSize: 13,
             ),
           ),
