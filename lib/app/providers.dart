@@ -3,8 +3,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/services/camera_service.dart';
 import '../core/services/storage_service.dart';
+// ignore: unused_import
 import '../core/services/understanding/demo_understanding_service.dart';
 import '../core/services/understanding/memory_understanding_service.dart';
+import '../core/services/understanding/mlkit_understanding_service.dart';
 import '../data/database/app_database.dart';
 import '../data/models/memory.dart';
 import '../data/models/vault_category.dart';
@@ -38,7 +40,9 @@ final appDatabaseProvider = Provider<AppDatabase>((ref) {
 
 /// Memory Understanding Service Provider (Pluggable interface)
 final understandingServiceProvider = Provider<MemoryUnderstandingService>((ref) {
-  return DemoMemoryUnderstandingService();
+  final service = MlKitMemoryUnderstandingService();
+  ref.onDispose(() => service.dispose());
+  return service;
 });
 
 /// Onboarding State Repository Provider
