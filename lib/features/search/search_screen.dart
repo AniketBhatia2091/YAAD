@@ -145,7 +145,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              'No memories matched "$currentQuery"',
+                              currentQuery.trim().isEmpty
+                                  ? 'No memories in your vault yet'
+                                  : 'No memories matched "$currentQuery"',
                               style: TextStyle(
                                 color: isDark ? YaadColors.textSecondaryDark : YaadColors.textSecondaryLight,
                                 fontSize: 15,

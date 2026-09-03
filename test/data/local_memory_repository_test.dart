@@ -183,19 +183,31 @@ void main() {
     await repository.deleteMemory('uuid-del-1');
   });
 
-  test('LocalMemoryRepository preserves demo memories alongside real ones', () async {
-    // Demo memory mem_1 should be accessible
-    final demoMemory = await repository.getMemoryById('mem_1');
-    expect(demoMemory, isNotNull);
-    expect(demoMemory!.title, equals('Electricity Bill'));
+  test('fresh install with zero captures shows an empty state without fake/demo documents', () async {
+    // No memories exist initially
+    expect(await repository.getAllMemories(), isEmpty);
+    expect(await repository.getRecentlyRemembered(), isEmpty);
+    expect(await repository.getAttentionItems(), isEmpty);
+    expect(await repository.getUpcomingItems(), isEmpty);
+    expect(await repository.getMemoryById('mem_1'), isNull);
+    expect(await repository.searchMemories(''), isEmpty);
+    expect(await repository.searchMemories('electricity'), isEmpty);
 
-    // Creating real memory does not overwrite or remove demo memories
-    final realMemory = Memory.createUnclassified(id: 'uuid-real-1', imagePath: '/path');
-    await repository.createMemory(realMemory);
+    // Vault categories are intact with 0 counts from static taxonomy
+    final categories = await repository.getVaultCategories();
+    expect(categories, isNotEmpty);
+    expect(categories.any((c) => c.key == 'unsorted'), isTrue);
+    expect(categories.any((c) => c.key == 'ids'), isTrue);
+    expect(categories.any((c) => c.key == 'bills'), isTrue);
+    expect(categories.any((c) => c.key == 'vehicles'), isTrue);
+    expect(categories.any((c) => c.key == 'medical'), isTrue);
+    expect(categories.any((c) => c.key == 'warranties'), isTrue);
+    expect(categories.any((c) => c.key == 'education'), isTrue);
 
-    final all = await repository.getAllMemories();
-    expect(all.any((m) => m.id == 'uuid-real-1'), isTrue);
-    expect(all.any((m) => m.id == 'mem_1'), isTrue);
+    // All categories have 0 counts
+    for (final cat in categories) {
+      expect(cat.count, equals(0));
+    }
   });
 
   test('LocalMemoryRepository updates understanding status and structured fields in SQLite', () async {
