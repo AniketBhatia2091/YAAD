@@ -301,6 +301,81 @@ class _UnderstandingScreenState extends ConsumerState<UnderstandingScreen> {
                           ],
                         ),
                       ),
+                    ] else if (_result?.status == UnderstandingStatus.failed) ...[
+                      // State B: Explicit Failed state UI
+                      Container(
+                        padding: YaadSpacing.cardPadding,
+                        decoration: BoxDecoration(
+                          color: isDark ? YaadColors.attentionUrgentBg : const Color(0xFFFDE8E8),
+                          borderRadius: YaadRadius.borderLg,
+                          border: Border.all(
+                            color: isDark
+                                ? YaadColors.attentionUrgent.withValues(alpha: 0.5)
+                                : const Color(0xFFF8B4B4),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.error_outline_rounded,
+                                  color: YaadColors.attentionUrgent,
+                                  size: 26,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Couldn\'t read this document',
+                                    style: YaadTypography.titleMediumOf(context).copyWith(
+                                      color: isDark ? YaadColors.creamText : const Color(0xFF9B1C1C),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Couldn\'t read this document — you can still save it and add details manually.',
+                              style: TextStyle(
+                                color: isDark ? YaadColors.creamMuted : const Color(0xFF9B1C1C),
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: YaadSpacing.lg),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: _isSaving ? null : _onKeepMemory,
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      side: BorderSide(
+                                        color: isDark ? YaadColors.borderDark : const Color(0xFFF8B4B4),
+                                      ),
+                                    ),
+                                    child: const Text('Keep memory'),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: _isSaving ? null : _loadMemoryAndUnderstand,
+                                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                                    label: const Text('Retry'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: YaadColors.attentionUrgent,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ] else if (_fields.isEmpty) ...[
                       // State C: Unknown / Unclassified state (No extracted fields)
                       Container(
