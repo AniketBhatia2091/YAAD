@@ -38,16 +38,19 @@ class MlKitMemoryUnderstandingService implements MemoryUnderstandingService {
         );
       }
 
-      final extractedMap = DocumentFieldParser.extractFields(rawText);
-      final docType = extractedMap['documentType'];
-      final categoryKey = DocumentFieldParser.categoryKeyFor(docType);
+      final parsed = DocumentFieldParser.parse(rawText);
+      final docType = parsed.documentType;
+      final categoryKey = parsed.categoryKey;
 
       final List<UnderstandingField> fields = [];
-      extractedMap.forEach((key, val) {
+      parsed.rawFields.forEach((key, val) {
         if (key != 'documentType') {
+          final fieldName = (key == 'dueDate' && parsed.dateTarget == 'expiryDate')
+              ? 'expiryDate'
+              : key;
           fields.add(
             UnderstandingField(
-              fieldName: key,
+              fieldName: fieldName,
               value: val,
               confidence: FieldConfidence.medium,
               source: FieldSource.visible,
@@ -65,6 +68,9 @@ class MlKitMemoryUnderstandingService implements MemoryUnderstandingService {
         categoryKey: categoryKey,
         fields: fields,
         overallConfidence: overallConf,
+        amount: parsed.amount,
+        dueDate: parsed.dueDate,
+        expiryDate: parsed.expiryDate,
       );
     } catch (_) {
       return const UnderstandingResult(status: UnderstandingStatus.failed);

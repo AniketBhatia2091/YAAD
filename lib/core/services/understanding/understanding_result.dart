@@ -16,6 +16,9 @@ class UnderstandingResult {
   final List<UnderstandingField> fields;
   final double? overallConfidence;
   final DateTime? understoodAt;
+  final double? amount;
+  final DateTime? dueDate;
+  final DateTime? expiryDate;
 
   const UnderstandingResult({
     required this.status,
@@ -24,6 +27,9 @@ class UnderstandingResult {
     this.fields = const [],
     this.overallConfidence,
     this.understoodAt,
+    this.amount,
+    this.dueDate,
+    this.expiryDate,
   });
 
   UnderstandingResult copyWith({
@@ -33,6 +39,9 @@ class UnderstandingResult {
     List<UnderstandingField>? fields,
     double? overallConfidence,
     DateTime? understoodAt,
+    double? amount,
+    DateTime? dueDate,
+    DateTime? expiryDate,
   }) {
     return UnderstandingResult(
       status: status ?? this.status,
@@ -41,6 +50,9 @@ class UnderstandingResult {
       fields: fields ?? this.fields,
       overallConfidence: overallConfidence ?? this.overallConfidence,
       understoodAt: understoodAt ?? this.understoodAt,
+      amount: amount ?? this.amount,
+      dueDate: dueDate ?? this.dueDate,
+      expiryDate: expiryDate ?? this.expiryDate,
     );
   }
 
@@ -52,6 +64,9 @@ class UnderstandingResult {
       'fields': fields.map((f) => f.toJson()).toList(),
       'overallConfidence': overallConfidence,
       'understoodAt': understoodAt?.toIso8601String(),
+      'amount': amount,
+      'dueDate': dueDate?.toIso8601String(),
+      'expiryDate': expiryDate?.toIso8601String(),
     };
   }
 
@@ -71,6 +86,13 @@ class UnderstandingResult {
       understoodAt: json['understoodAt'] != null
           ? DateTime.tryParse(json['understoodAt'] as String)
           : null,
+      amount: (json['amount'] as num?)?.toDouble(),
+      dueDate: json['dueDate'] != null
+          ? DateTime.tryParse(json['dueDate'] as String)
+          : null,
+      expiryDate: json['expiryDate'] != null
+          ? DateTime.tryParse(json['expiryDate'] as String)
+          : null,
     );
   }
 
@@ -83,13 +105,16 @@ class UnderstandingResult {
           documentType == other.documentType &&
           categoryKey == other.categoryKey &&
           overallConfidence == other.overallConfidence &&
-          understoodAt == other.understoodAt;
+          understoodAt == other.understoodAt &&
+          amount == other.amount &&
+          dueDate == other.dueDate &&
+          expiryDate == other.expiryDate;
 
   @override
   int get hashCode =>
-      Object.hash(status, documentType, categoryKey, overallConfidence, understoodAt);
+      Object.hash(status, documentType, categoryKey, overallConfidence, understoodAt, amount, dueDate, expiryDate);
 
   @override
   String toString() =>
-      'UnderstandingResult(status: $status, docType: $documentType, category: $categoryKey, fields: ${fields.length})';
+      'UnderstandingResult(status: $status, docType: $documentType, category: $categoryKey, fields: ${fields.length}, amount: $amount, dueDate: $dueDate, expiryDate: $expiryDate)';
 }

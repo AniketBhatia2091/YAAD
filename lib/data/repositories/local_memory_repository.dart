@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../app/theme/color_tokens.dart';
 import '../../core/services/storage_service.dart';
+import '../../core/services/understanding/document_field_parser.dart';
 import '../../core/services/understanding/understanding_field.dart';
 import '../../core/services/understanding/understanding_result.dart';
 import '../database/app_database.dart';
@@ -124,6 +126,9 @@ class LocalMemoryRepository implements MemoryRepository {
     await _mockRepository.updateMemory(memory);
   }
 
+  /// Number of days before due/expiry date within which a memory requires urgent attention.
+  static const int attentionDaysThreshold = 7;
+
   @override
   Future<void> updateUnderstanding(String memoryId, UnderstandingResult result) async {
     final memory = await getMemoryById(memoryId);
@@ -137,6 +142,103 @@ class LocalMemoryRepository implements MemoryRepository {
       }
     }
 
+    final docType = result.documentType ?? memory.documentType;
+
+    // 1. Resolve typed amount:
+    // Prefer result.amount, then search result.fields for 'amount'
+    double? resolvedAmount = result.amount;
+    if (resolvedAmount == null) {
+      final amountField = result.fields.where(
+        (f) => f.fieldName.toLowerCase() == 'amount',
+      ).firstOrNull;
+      if (amountField?.value != null) {
+        resolvedAmount = DocumentFieldParser.parseAmount(amountField!.value);
+      }
+    }
+
+    // 2. Resolve typed dueDate vs expiryDate:
+    DateTime? resolvedDueDate = result.dueDate;
+    DateTime? resolvedExpiryDate = result.expiryDate;
+    final isExpiryDoc = DocumentFieldParser.dateTargetFor(docType) == 'expiryDate';
+
+    if (resolvedDueDate == null && resolvedExpiryDate == null) {
+      final dateField = result.fields.where(
+        (f) =>
+            f.fieldName.toLowerCase() == 'duedate' ||
+            f.fieldName.toLowerCase() == 'due_date' ||
+            f.fieldName.toLowerCase() == 'expirydate' ||
+            f.fieldName.toLowerCase() == 'expiry_date',
+      ).firstOrNull;
+      if (dateField?.value != null) {
+        final parsedDate = DocumentFieldParser.parseDate(dateField!.value);
+        if (isExpiryDoc) {
+          resolvedExpiryDate = parsedDate;
+        } else {
+          resolvedDueDate = parsedDate;
+        }
+      }
+    }
+
+    // 3. Determine attention vs upcoming:
+    final targetDate = resolvedDueDate ?? resolvedExpiryDate;
+    bool isAttention = false;
+    if (targetDate != null) {
+      final now = DateTime.now();
+      final nowDate = DateTime(now.year, now.month, now.day);
+      final targetDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
+      final daysDiff = targetDay.difference(nowDate).inDays;
+      if (daysDiff <= attentionDaysThreshold) {
+        isAttention = true;
+      }
+    }
+
+    // 4. Generate helpful subtitle & actionTitle if currently unclassified/default
+    String? newSubtitle = memory.subtitle;
+    String? newActionTitle = memory.actionTitle;
+
+    if (newSubtitle == null || newSubtitle == 'Unclassified memory' || newSubtitle.isEmpty) {
+      if (targetDate != null) {
+        final now = DateTime.now();
+        final nowDate = DateTime(now.year, now.month, now.day);
+        final targetDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
+        final daysDiff = targetDay.difference(nowDate).inDays;
+
+        final String dateText;
+        if (daysDiff == 0) {
+          dateText = isExpiryDoc ? 'Expires today' : 'Due today';
+        } else if (daysDiff > 0 && daysDiff <= 30) {
+          dateText = isExpiryDoc ? 'Expires in $daysDiff days' : 'Due in $daysDiff days';
+        } else if (daysDiff < 0) {
+          dateText = isExpiryDoc ? 'Expired ${-daysDiff} days ago' : 'Overdue by ${-daysDiff} days';
+        } else {
+          dateText = isExpiryDoc
+              ? 'Expires ${DateFormat('d MMM').format(targetDate)}'
+              : 'Due ${DateFormat('d MMM').format(targetDate)}';
+        }
+
+        if (resolvedAmount != null) {
+          newSubtitle = '₹${resolvedAmount.toStringAsFixed(0)} · $dateText';
+        } else {
+          newSubtitle = dateText;
+        }
+      } else if (resolvedAmount != null) {
+        newSubtitle = '₹${resolvedAmount.toStringAsFixed(0)}';
+      }
+    }
+
+    if (newActionTitle == null || newActionTitle.isEmpty) {
+      if (targetDate != null) {
+        final dateFormatted = DateFormat('MMM d').format(targetDate);
+        if (docType.toLowerCase().contains('bill') || docType.toLowerCase().contains('invoice')) {
+          newActionTitle = 'Pay by $dateFormatted';
+        } else if (docType.toLowerCase().contains('insurance')) {
+          newActionTitle = 'Renew before $dateFormatted';
+        } else if (docType.toLowerCase().contains('warranty')) {
+          newActionTitle = 'Claim if needed';
+        }
+      }
+    }
+
     final updated = memory.copyWith(
       title: newTitle,
       documentType: result.documentType ?? memory.documentType,
@@ -146,6 +248,12 @@ class LocalMemoryRepository implements MemoryRepository {
       understandingStatus: result.status,
       understoodAt: result.understoodAt ??
           (result.status == UnderstandingStatus.confirmed ? DateTime.now() : memory.understoodAt),
+      amount: resolvedAmount,
+      dueDate: resolvedDueDate,
+      expiryDate: resolvedExpiryDate,
+      isAttentionRequired: isAttention,
+      subtitle: newSubtitle,
+      actionTitle: newActionTitle,
       updatedAt: DateTime.now(),
     );
 

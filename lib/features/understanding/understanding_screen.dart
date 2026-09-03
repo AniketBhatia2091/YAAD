@@ -9,6 +9,7 @@ import '../../app/theme/radius_tokens.dart';
 import '../../app/theme/shadow_tokens.dart';
 import '../../app/theme/spacing_tokens.dart';
 import '../../app/theme/typography_tokens.dart';
+import '../../core/services/understanding/document_field_parser.dart';
 import '../../core/services/understanding/understanding_field.dart';
 import '../../core/services/understanding/understanding_result.dart';
 import '../../data/models/memory.dart';
@@ -128,13 +129,31 @@ class _UnderstandingScreenState extends ConsumerState<UnderstandingScreen> {
 
     try {
       final repo = ref.read(memoryRepositoryProvider);
+      final docType = _result?.documentType ?? _memory!.documentType;
+      final isExpiry = DocumentFieldParser.dateTargetFor(docType) == 'expiryDate';
+
+      final amountField = _fields.where((f) => f.fieldName.toLowerCase() == 'amount').firstOrNull;
+      final parsedAmount = amountField != null ? DocumentFieldParser.parseAmount(amountField.value) : null;
+
+      final dateField = _fields.where(
+        (f) =>
+            f.fieldName.toLowerCase() == 'duedate' ||
+            f.fieldName.toLowerCase() == 'due_date' ||
+            f.fieldName.toLowerCase() == 'expirydate' ||
+            f.fieldName.toLowerCase() == 'expiry_date',
+      ).firstOrNull;
+      final parsedDate = dateField != null ? DocumentFieldParser.parseDate(dateField.value) : null;
+
       final confirmedResult = UnderstandingResult(
         status: UnderstandingStatus.confirmed,
-        documentType: _result?.documentType ?? _memory!.documentType,
+        documentType: docType,
         categoryKey: _result?.categoryKey ?? _memory!.categoryKey,
         fields: _fields,
         overallConfidence: _result?.overallConfidence ?? 1.0,
         understoodAt: DateTime.now(),
+        amount: parsedAmount,
+        dueDate: isExpiry ? null : parsedDate,
+        expiryDate: isExpiry ? parsedDate : null,
       );
 
       await repo.updateUnderstanding(widget.memoryId, confirmedResult);

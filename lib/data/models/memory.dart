@@ -111,6 +111,9 @@ class Memory {
     DateTime? understoodAt,
     List<UnderstandingField>? structuredFields,
     String? titleOverride,
+    bool clearExpiryDate = false,
+    bool clearDueDate = false,
+    bool clearAmount = false,
   }) {
     return Memory(
       id: id ?? this.id,
@@ -123,9 +126,9 @@ class Memory {
       updatedAt: updatedAt ?? this.updatedAt,
       owner: owner ?? this.owner,
       confidence: confidence ?? this.confidence,
-      expiryDate: expiryDate ?? this.expiryDate,
-      dueDate: dueDate ?? this.dueDate,
-      amount: amount ?? this.amount,
+      expiryDate: clearExpiryDate ? null : (expiryDate ?? this.expiryDate),
+      dueDate: clearDueDate ? null : (dueDate ?? this.dueDate),
+      amount: clearAmount ? null : (amount ?? this.amount),
       actionTitle: actionTitle ?? this.actionTitle,
       actionSubtitle: actionSubtitle ?? this.actionSubtitle,
       isAttentionRequired: isAttentionRequired ?? this.isAttentionRequired,

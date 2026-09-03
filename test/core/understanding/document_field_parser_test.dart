@@ -74,5 +74,66 @@ void main() {
       expect(DocumentFieldParser.categoryKeyFor('Unknown'), isNull);
       expect(DocumentFieldParser.categoryKeyFor(null), isNull);
     });
+
+    test('parseAmount parses currencies, commas, and decimals into double', () {
+      expect(DocumentFieldParser.parseAmount('₹1,847.50'), equals(1847.5));
+      expect(DocumentFieldParser.parseAmount('₹1,847'), equals(1847.0));
+      expect(DocumentFieldParser.parseAmount('Rs. 500'), equals(500.0));
+      expect(DocumentFieldParser.parseAmount('Rs 2,500'), equals(2500.0));
+      expect(DocumentFieldParser.parseAmount('INR 12,500'), equals(12500.0));
+      expect(DocumentFieldParser.parseAmount('99.99'), equals(99.99));
+      expect(DocumentFieldParser.parseAmount(''), isNull);
+      expect(DocumentFieldParser.parseAmount('   '), isNull);
+      expect(DocumentFieldParser.parseAmount(null), isNull);
+      expect(DocumentFieldParser.parseAmount('no-numbers'), isNull);
+    });
+
+    test('parseDate parses numeric and named month formats accurately into DateTime', () {
+      expect(DocumentFieldParser.parseDate('05/09/2026'), equals(DateTime(2026, 9, 5)));
+      expect(DocumentFieldParser.parseDate('10-12-2026'), equals(DateTime(2026, 12, 10)));
+      expect(DocumentFieldParser.parseDate('5 Sep 2026'), equals(DateTime(2026, 9, 5)));
+      expect(DocumentFieldParser.parseDate('15 OCTOBER 2026'), equals(DateTime(2026, 10, 15)));
+      expect(DocumentFieldParser.parseDate('1 Jan 2027'), equals(DateTime(2027, 1, 1)));
+      expect(DocumentFieldParser.parseDate(''), isNull);
+      expect(DocumentFieldParser.parseDate('   '), isNull);
+      expect(DocumentFieldParser.parseDate(null), isNull);
+      expect(DocumentFieldParser.parseDate('invalid-date'), isNull);
+    });
+
+    test('dateTargetFor classifies expiry vs due dates correctly', () {
+      expect(DocumentFieldParser.dateTargetFor('Insurance'), equals('expiryDate'));
+      expect(DocumentFieldParser.dateTargetFor('Warranty'), equals('expiryDate'));
+      expect(DocumentFieldParser.dateTargetFor('PUC'), equals('expiryDate'));
+      expect(DocumentFieldParser.dateTargetFor('Vehicle PUC'), equals('expiryDate'));
+      expect(DocumentFieldParser.dateTargetFor('Bill'), equals('dueDate'));
+      expect(DocumentFieldParser.dateTargetFor('Prescription'), equals('dueDate'));
+      expect(DocumentFieldParser.dateTargetFor('Unknown'), equals('dueDate'));
+      expect(DocumentFieldParser.dateTargetFor(null), equals('dueDate'));
+    });
+
+    test('parse method returns typed fields alongside raw fields', () {
+      final parsedBill = DocumentFieldParser.parse('ELECTRICITY BILL Total Amount: ₹1,847 Due: 05/09/2026');
+      expect(parsedBill.documentType, equals('Bill'));
+      expect(parsedBill.categoryKey, equals('bills'));
+      expect(parsedBill.rawAmount, equals('₹1,847'));
+      expect(parsedBill.amount, equals(1847.0));
+      expect(parsedBill.rawDate, equals('05/09/2026'));
+      expect(parsedBill.date, equals(DateTime(2026, 9, 5)));
+      expect(parsedBill.dateTarget, equals('dueDate'));
+      expect(parsedBill.dueDate, equals(DateTime(2026, 9, 5)));
+      expect(parsedBill.expiryDate, isNull);
+
+      final parsedInsurance = DocumentFieldParser.parse('Vehicle Insurance Policy Expires on: 10-12-2026');
+      expect(parsedInsurance.documentType, equals('Insurance'));
+      expect(parsedInsurance.categoryKey, equals('vehicles'));
+      expect(parsedInsurance.dateTarget, equals('expiryDate'));
+      expect(parsedInsurance.expiryDate, equals(DateTime(2026, 12, 10)));
+      expect(parsedInsurance.dueDate, isNull);
+
+      final emptyParsed = DocumentFieldParser.parse('');
+      expect(emptyParsed.documentType, isNull);
+      expect(emptyParsed.amount, isNull);
+      expect(emptyParsed.date, isNull);
+    });
   });
 }
