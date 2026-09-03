@@ -145,42 +145,71 @@ class LocalMemoryRepository implements MemoryRepository {
     final docType = result.documentType ?? memory.documentType;
 
     // 1. Resolve typed amount:
-    // Prefer result.amount, then search result.fields for 'amount'
+    // Distinguish "user explicitly cleared this field" (present-but-empty) from "never parsed" (absent)
+    final amountField = result.fields.where(
+      (f) => f.fieldName.toLowerCase() == 'amount',
+    ).firstOrNull;
+    final bool isAmountPresent = amountField != null;
+    final bool isAmountEmpty = isAmountPresent && (amountField.value == null || amountField.value!.trim().isEmpty);
+
+    bool shouldClearAmount = result.clearAmount || isAmountEmpty;
     double? resolvedAmount = result.amount;
-    if (resolvedAmount == null) {
-      final amountField = result.fields.where(
-        (f) => f.fieldName.toLowerCase() == 'amount',
-      ).firstOrNull;
-      if (amountField?.value != null) {
-        resolvedAmount = DocumentFieldParser.parseAmount(amountField!.value);
-      }
+    if (!shouldClearAmount && resolvedAmount == null && isAmountPresent) {
+      resolvedAmount = DocumentFieldParser.parseAmount(amountField.value);
+    }
+    if (shouldClearAmount) {
+      resolvedAmount = null;
     }
 
     // 2. Resolve typed dueDate vs expiryDate:
+    final isExpiryDoc = DocumentFieldParser.dateTargetFor(docType) == 'expiryDate';
+    final dateField = result.fields.where(
+      (f) =>
+          f.fieldName.toLowerCase() == 'duedate' ||
+          f.fieldName.toLowerCase() == 'due_date' ||
+          f.fieldName.toLowerCase() == 'expirydate' ||
+          f.fieldName.toLowerCase() == 'expiry_date',
+    ).firstOrNull;
+    final bool isDatePresent = dateField != null;
+    final bool isDateEmpty = isDatePresent && (dateField.value == null || dateField.value!.trim().isEmpty);
+
     DateTime? resolvedDueDate = result.dueDate;
     DateTime? resolvedExpiryDate = result.expiryDate;
-    final isExpiryDoc = DocumentFieldParser.dateTargetFor(docType) == 'expiryDate';
 
-    if (resolvedDueDate == null && resolvedExpiryDate == null) {
-      final dateField = result.fields.where(
-        (f) =>
-            f.fieldName.toLowerCase() == 'duedate' ||
-            f.fieldName.toLowerCase() == 'due_date' ||
-            f.fieldName.toLowerCase() == 'expirydate' ||
-            f.fieldName.toLowerCase() == 'expiry_date',
-      ).firstOrNull;
-      if (dateField?.value != null) {
-        final parsedDate = DocumentFieldParser.parseDate(dateField!.value);
-        if (isExpiryDoc) {
-          resolvedExpiryDate = parsedDate;
-        } else {
-          resolvedDueDate = parsedDate;
-        }
+    bool shouldClearDueDate = result.clearDueDate || isDateEmpty;
+    bool shouldClearExpiryDate = result.clearExpiryDate || isDateEmpty;
+
+    if (!isDateEmpty && resolvedDueDate == null && resolvedExpiryDate == null && isDatePresent) {
+      final parsedDate = DocumentFieldParser.parseDate(dateField.value);
+      if (isExpiryDoc) {
+        resolvedExpiryDate = parsedDate;
+        shouldClearDueDate = true;
+      } else {
+        resolvedDueDate = parsedDate;
+        shouldClearExpiryDate = true;
       }
+    } else if (resolvedDueDate != null) {
+      shouldClearExpiryDate = true;
+    } else if (resolvedExpiryDate != null) {
+      shouldClearDueDate = true;
     }
 
-    // 3. Determine attention vs upcoming:
-    final targetDate = resolvedDueDate ?? resolvedExpiryDate;
+    if (shouldClearDueDate) {
+      resolvedDueDate = null;
+    }
+    if (shouldClearExpiryDate) {
+      resolvedExpiryDate = null;
+    }
+
+    // Determine the resulting dates on the memory:
+    // If explicitly cleared, null. Otherwise, newly resolved date, or if absent, fallback to existing memory date.
+    final finalDueDate = shouldClearDueDate ? null : (resolvedDueDate ?? memory.dueDate);
+    final finalExpiryDate = shouldClearExpiryDate ? null : (resolvedExpiryDate ?? memory.expiryDate);
+    final finalAmount = shouldClearAmount ? null : (resolvedAmount ?? memory.amount);
+
+    // 3. Determine attention vs upcoming with full consistency:
+    // If dueDate and expiryDate both end up null after this fix, isAttentionRequired must be false!
+    final targetDate = finalDueDate ?? finalExpiryDate;
     bool isAttention = false;
     if (targetDate != null) {
       final now = DateTime.now();
@@ -190,6 +219,8 @@ class LocalMemoryRepository implements MemoryRepository {
       if (daysDiff <= attentionDaysThreshold) {
         isAttention = true;
       }
+    } else {
+      isAttention = false;
     }
 
     // 4. Generate helpful subtitle & actionTitle if currently unclassified/default
@@ -216,13 +247,13 @@ class LocalMemoryRepository implements MemoryRepository {
               : 'Due ${DateFormat('d MMM').format(targetDate)}';
         }
 
-        if (resolvedAmount != null) {
-          newSubtitle = '₹${resolvedAmount.toStringAsFixed(0)} · $dateText';
+        if (finalAmount != null) {
+          newSubtitle = '₹${finalAmount.toStringAsFixed(0)} · $dateText';
         } else {
           newSubtitle = dateText;
         }
-      } else if (resolvedAmount != null) {
-        newSubtitle = '₹${resolvedAmount.toStringAsFixed(0)}';
+      } else if (finalAmount != null) {
+        newSubtitle = '₹${finalAmount.toStringAsFixed(0)}';
       }
     }
 
@@ -249,8 +280,11 @@ class LocalMemoryRepository implements MemoryRepository {
       understoodAt: result.understoodAt ??
           (result.status == UnderstandingStatus.confirmed ? DateTime.now() : memory.understoodAt),
       amount: resolvedAmount,
+      clearAmount: shouldClearAmount,
       dueDate: resolvedDueDate,
+      clearDueDate: shouldClearDueDate,
       expiryDate: resolvedExpiryDate,
+      clearExpiryDate: shouldClearExpiryDate,
       isAttentionRequired: isAttention,
       subtitle: newSubtitle,
       actionTitle: newActionTitle,

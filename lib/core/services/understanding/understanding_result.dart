@@ -19,6 +19,9 @@ class UnderstandingResult {
   final double? amount;
   final DateTime? dueDate;
   final DateTime? expiryDate;
+  final bool clearAmount;
+  final bool clearDueDate;
+  final bool clearExpiryDate;
 
   const UnderstandingResult({
     required this.status,
@@ -30,6 +33,9 @@ class UnderstandingResult {
     this.amount,
     this.dueDate,
     this.expiryDate,
+    this.clearAmount = false,
+    this.clearDueDate = false,
+    this.clearExpiryDate = false,
   });
 
   UnderstandingResult copyWith({
@@ -42,6 +48,9 @@ class UnderstandingResult {
     double? amount,
     DateTime? dueDate,
     DateTime? expiryDate,
+    bool? clearAmount,
+    bool? clearDueDate,
+    bool? clearExpiryDate,
   }) {
     return UnderstandingResult(
       status: status ?? this.status,
@@ -53,6 +62,9 @@ class UnderstandingResult {
       amount: amount ?? this.amount,
       dueDate: dueDate ?? this.dueDate,
       expiryDate: expiryDate ?? this.expiryDate,
+      clearAmount: clearAmount ?? this.clearAmount,
+      clearDueDate: clearDueDate ?? this.clearDueDate,
+      clearExpiryDate: clearExpiryDate ?? this.clearExpiryDate,
     );
   }
 
@@ -67,6 +79,9 @@ class UnderstandingResult {
       'amount': amount,
       'dueDate': dueDate?.toIso8601String(),
       'expiryDate': expiryDate?.toIso8601String(),
+      'clearAmount': clearAmount,
+      'clearDueDate': clearDueDate,
+      'clearExpiryDate': clearExpiryDate,
     };
   }
 
@@ -93,6 +108,9 @@ class UnderstandingResult {
       expiryDate: json['expiryDate'] != null
           ? DateTime.tryParse(json['expiryDate'] as String)
           : null,
+      clearAmount: json['clearAmount'] as bool? ?? false,
+      clearDueDate: json['clearDueDate'] as bool? ?? false,
+      clearExpiryDate: json['clearExpiryDate'] as bool? ?? false,
     );
   }
 
@@ -108,13 +126,27 @@ class UnderstandingResult {
           understoodAt == other.understoodAt &&
           amount == other.amount &&
           dueDate == other.dueDate &&
-          expiryDate == other.expiryDate;
+          expiryDate == other.expiryDate &&
+          clearAmount == other.clearAmount &&
+          clearDueDate == other.clearDueDate &&
+          clearExpiryDate == other.clearExpiryDate;
 
   @override
-  int get hashCode =>
-      Object.hash(status, documentType, categoryKey, overallConfidence, understoodAt, amount, dueDate, expiryDate);
+  int get hashCode => Object.hash(
+        status,
+        documentType,
+        categoryKey,
+        overallConfidence,
+        understoodAt,
+        amount,
+        dueDate,
+        expiryDate,
+        clearAmount,
+        clearDueDate,
+        clearExpiryDate,
+      );
 
   @override
   String toString() =>
-      'UnderstandingResult(status: $status, docType: $documentType, category: $categoryKey, fields: ${fields.length}, amount: $amount, dueDate: $dueDate, expiryDate: $expiryDate)';
+      'UnderstandingResult(status: $status, docType: $documentType, category: $categoryKey, fields: ${fields.length}, amount: $amount, dueDate: $dueDate, expiryDate: $expiryDate, clearAmount: $clearAmount, clearDueDate: $clearDueDate, clearExpiryDate: $clearExpiryDate)';
 }

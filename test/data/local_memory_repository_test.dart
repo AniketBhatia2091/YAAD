@@ -408,4 +408,113 @@ void main() {
     expect(fetched!.subtitle, equals('Paid by Dad via NetBanking'));
     expect(fetched.actionTitle, equals('Check Bank Statement'));
   });
+
+  test('user clears previously-populated due date and amount fields on review screen: persisted Memory has dueDate == null, amount == null, and isAttentionRequired == false', () async {
+    final originalDueDate = DateTime.now().add(const Duration(days: 2));
+    final memory = Memory.createUnclassified(id: 'uuid-clear-1', imagePath: '/path/bill.jpg').copyWith(
+      documentType: 'Bill',
+      categoryKey: 'bills',
+      amount: 1847.0,
+      dueDate: originalDueDate,
+      isAttentionRequired: true,
+    );
+    await repository.createMemory(memory);
+
+    // Initial state: populated amount, populated dueDate, isAttentionRequired = true
+    final initial = await repository.getMemoryById('uuid-clear-1');
+    expect(initial!.amount, equals(1847.0));
+    expect(initial.dueDate, isNotNull);
+    expect(initial.isAttentionRequired, isTrue);
+
+    // User clears both amount and dueDate fields (value becomes empty string or whitespace)
+    final clearedResult = UnderstandingResult(
+      status: UnderstandingStatus.confirmed,
+      documentType: 'Bill',
+      categoryKey: 'bills',
+      amount: null,
+      dueDate: null,
+      expiryDate: null,
+      clearAmount: true,
+      clearDueDate: true,
+      fields: const [
+        UnderstandingField(fieldName: 'amount', value: ''),
+        UnderstandingField(fieldName: 'dueDate', value: '   '),
+      ],
+    );
+
+    await repository.updateUnderstanding('uuid-clear-1', clearedResult);
+
+    final updated = await repository.getMemoryById('uuid-clear-1');
+    expect(updated, isNotNull);
+    // Amount must be null
+    expect(updated!.amount, isNull);
+    // DueDate must be null
+    expect(updated.dueDate, isNull);
+    expect(updated.expiryDate, isNull);
+    // isAttentionRequired must be false
+    expect(updated.isAttentionRequired, isFalse);
+  });
+
+  test('user clears due date via fallback parsing (present-but-empty field without root flags): persisted Memory has dueDate == null and isAttentionRequired == false', () async {
+    final originalDueDate = DateTime.now().add(const Duration(days: 2));
+    final memory = Memory.createUnclassified(id: 'uuid-clear-2', imagePath: '/path/bill.jpg').copyWith(
+      documentType: 'Bill',
+      categoryKey: 'bills',
+      amount: 500.0,
+      dueDate: originalDueDate,
+      isAttentionRequired: true,
+    );
+    await repository.createMemory(memory);
+
+    // Review screen passes UnderstandingResult without clear flags, but with present-but-empty fields
+    const clearedResult = UnderstandingResult(
+      status: UnderstandingStatus.confirmed,
+      documentType: 'Bill',
+      categoryKey: 'bills',
+      fields: [
+        UnderstandingField(fieldName: 'amount', value: ''),
+        UnderstandingField(fieldName: 'dueDate', value: ''),
+      ],
+    );
+
+    await repository.updateUnderstanding('uuid-clear-2', clearedResult);
+
+    final updated = await repository.getMemoryById('uuid-clear-2');
+    expect(updated, isNotNull);
+    expect(updated!.amount, isNull);
+    expect(updated.dueDate, isNull);
+    expect(updated.expiryDate, isNull);
+    expect(updated.isAttentionRequired, isFalse);
+  });
+
+  test('absent field in result.fields leaves existing value on Memory unchanged', () async {
+    final originalDueDate = DateTime.now().add(const Duration(days: 2));
+    final memory = Memory.createUnclassified(id: 'uuid-absent-1', imagePath: '/path/bill.jpg').copyWith(
+      documentType: 'Bill',
+      categoryKey: 'bills',
+      amount: 1200.0,
+      dueDate: originalDueDate,
+      isAttentionRequired: true,
+    );
+    await repository.createMemory(memory);
+
+    // Result has neither amount nor dueDate in fields (only provider)
+    const result = UnderstandingResult(
+      status: UnderstandingStatus.confirmed,
+      documentType: 'Bill',
+      categoryKey: 'bills',
+      fields: [
+        UnderstandingField(fieldName: 'provider', value: 'BSES Yamuna'),
+      ],
+    );
+
+    await repository.updateUnderstanding('uuid-absent-1', result);
+
+    final updated = await repository.getMemoryById('uuid-absent-1');
+    expect(updated, isNotNull);
+    // Preserves existing amount and dueDate because fields were simply absent, not cleared
+    expect(updated!.amount, equals(1200.0));
+    expect(updated.dueDate?.millisecondsSinceEpoch, equals(originalDueDate.millisecondsSinceEpoch));
+    expect(updated.isAttentionRequired, isTrue);
+  });
 }

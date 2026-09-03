@@ -133,7 +133,9 @@ class _UnderstandingScreenState extends ConsumerState<UnderstandingScreen> {
       final isExpiry = DocumentFieldParser.dateTargetFor(docType) == 'expiryDate';
 
       final amountField = _fields.where((f) => f.fieldName.toLowerCase() == 'amount').firstOrNull;
-      final parsedAmount = amountField != null ? DocumentFieldParser.parseAmount(amountField.value) : null;
+      final bool isAmountPresent = amountField != null;
+      final bool shouldClearAmount = isAmountPresent && (amountField.value == null || amountField.value!.trim().isEmpty);
+      final parsedAmount = (isAmountPresent && !shouldClearAmount) ? DocumentFieldParser.parseAmount(amountField.value) : null;
 
       final dateField = _fields.where(
         (f) =>
@@ -142,7 +144,12 @@ class _UnderstandingScreenState extends ConsumerState<UnderstandingScreen> {
             f.fieldName.toLowerCase() == 'expirydate' ||
             f.fieldName.toLowerCase() == 'expiry_date',
       ).firstOrNull;
-      final parsedDate = dateField != null ? DocumentFieldParser.parseDate(dateField.value) : null;
+      final bool isDatePresent = dateField != null;
+      final bool isDateEmpty = isDatePresent && (dateField.value == null || dateField.value!.trim().isEmpty);
+      final parsedDate = (isDatePresent && !isDateEmpty) ? DocumentFieldParser.parseDate(dateField.value) : null;
+
+      final bool shouldClearDueDate = isDateEmpty || (parsedDate != null && isExpiry);
+      final bool shouldClearExpiryDate = isDateEmpty || (parsedDate != null && !isExpiry);
 
       final confirmedResult = UnderstandingResult(
         status: UnderstandingStatus.confirmed,
@@ -154,6 +161,9 @@ class _UnderstandingScreenState extends ConsumerState<UnderstandingScreen> {
         amount: parsedAmount,
         dueDate: isExpiry ? null : parsedDate,
         expiryDate: isExpiry ? parsedDate : null,
+        clearAmount: shouldClearAmount,
+        clearDueDate: shouldClearDueDate,
+        clearExpiryDate: shouldClearExpiryDate,
       );
 
       await repo.updateUnderstanding(widget.memoryId, confirmedResult);
